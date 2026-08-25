@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "950404052113",
+    "project_id": "epickup-app-staging",
+    "storage_bucket": "epickup-app-staging.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:950404052113:android:f6c484d7461388d1adbb30",
+        "android_client_info": {
+          "package_name": "com.epickup.shop"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAz1W00M8oXv6Ww5EIYsANLyvTElq6WASM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
