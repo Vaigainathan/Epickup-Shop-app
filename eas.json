@@ -1,0 +1,29 @@
+{
+  "cli": {
+    "version": ">= 22.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "API_URL": "https://epickupbackend-staging.up.railway.app",
+        "SENTRY_DSN": "https://951662f11ce625480058740b8c33dd28@o4509858834939904.ingest.us.sentry.io/4511970450407424",
+        "APP_ENV": "staging"
+      }
+    },
+    "preview": {
+      "distribution": "internal"
+    },
+    "production": {
+      "autoIncrement": true
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
