@@ -2,7 +2,7 @@
   "expo": {
     "name": "EPickup Shop",
     "slug": "epickup-shop",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "epickup-shop",
@@ -33,6 +33,36 @@
           "backgroundColor": "#208AEF",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
+        }
+      ],
+      "expo-secure-store",
+      [
+        "react-native-maps",
+        {
+          "androidGoogleMapsApiKey": "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow ePickup Shop to access your photos for documents and catalogue images.",
+          "cameraPermission": "Allow ePickup Shop to take photos of documents and catalogue items.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow ePickup Shop to take photos of documents and catalogue items.",
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#000666",
+          "defaultChannel": "default"
         }
       ]
     ],
