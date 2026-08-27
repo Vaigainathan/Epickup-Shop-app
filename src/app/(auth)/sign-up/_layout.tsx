@@ -5,6 +5,7 @@ export default function SignUpLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="otp" />
+      <Stack.Screen name="set-password" />
       <Stack.Screen name="business-details" />
       <Stack.Screen name="documents" />
       <Stack.Screen name="bank-details" />

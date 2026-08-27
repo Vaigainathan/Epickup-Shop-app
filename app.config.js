@@ -13,6 +13,26 @@ module.exports = ({ config }) => {
     ];
   });
 
+  const hasPlugin = (name) =>
+    plugins.some((plugin) => (Array.isArray(plugin) ? plugin[0] : plugin) === name);
+
+  if (!hasPlugin('@react-native-firebase/app')) {
+    plugins.push('@react-native-firebase/app');
+  }
+  if (!hasPlugin('@react-native-firebase/auth')) {
+    plugins.push('@react-native-firebase/auth');
+  }
+  if (!hasPlugin('expo-build-properties')) {
+    plugins.push([
+      'expo-build-properties',
+      {
+        ios: {
+          useFrameworks: 'static',
+        },
+      },
+    ]);
+  }
+
   return {
     ...config,
     plugins,
