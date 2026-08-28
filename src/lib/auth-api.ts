@@ -267,3 +267,69 @@ export async function saveShopBusinessDetails(
 
   return body ?? {};
 }
+
+export async function verifyShopUpi(upiId: string, bearerToken: string) {
+  const response = await fetch(apiUrl('/api/shop/onboarding/verify-upi'), {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${bearerToken}`,
+    },
+    body: JSON.stringify({ upiId }),
+  });
+
+  const body = await parseJson(response);
+  if (!response.ok) {
+    throw new Error(errorMessage(body, 'Could not verify this UPI ID.'));
+  }
+
+  return body ?? {};
+}
+
+export async function saveShopBankDetails(
+  details: {
+    accountHolderName: string;
+    bankName: string;
+    accountNumber: string;
+    ifsc: string;
+    upiId: string;
+  },
+  bearerToken: string,
+) {
+  const response = await fetch(apiUrl('/api/shop/onboarding/bank-details'), {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${bearerToken}`,
+    },
+    body: JSON.stringify(details),
+  });
+
+  const body = await parseJson(response);
+  if (!response.ok) {
+    throw new Error(errorMessage(body, 'Could not save your bank details.'));
+  }
+
+  return body ?? {};
+}
+
+export async function submitShopOnboarding(bearerToken: string) {
+  const response = await fetch(apiUrl('/api/shop/onboarding/submit'), {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${bearerToken}`,
+    },
+    body: JSON.stringify({}),
+  });
+
+  const body = await parseJson(response);
+  if (!response.ok) {
+    throw new Error(errorMessage(body, 'Could not submit your application.'));
+  }
+
+  return body ?? {};
+}

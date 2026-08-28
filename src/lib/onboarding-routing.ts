@@ -10,6 +10,12 @@ export type IncompleteStep = 'business-details' | 'documents' | 'bank-details';
 export type OnboardingStatus = {
   phase: OnboardingPhase;
   nextIncompleteStep: IncompleteStep | null;
+  rejectionReason: string | null;
+  rejectedSection: IncompleteStep | null;
+};
+
+export type AuthenticatedRouteOptions = {
+  incompleteMessage?: (step: IncompleteStep) => string;
 };
 
 type JsonRecord = Record<string, unknown>;
@@ -54,6 +60,16 @@ function readString(record: JsonRecord | null, keys: string[]): string | null {
     }
   }
   return null;
+}
+
+function readStep(record: JsonRecord | null, keys: string[]): IncompleteStep | null {
+  const value = readString(record, keys);
+  if (!value) return null;
+
+  const normalized = value.trim().toLowerCase().replace(/[\s_]+/g, '-');
+  return STEP_ORDER.includes(normalized as IncompleteStep)
+    ? (normalized as IncompleteStep)
+    : null;
 }
 
 function readBoolean(record: JsonRecord | null, keys: string[]): boolean | null {
@@ -178,36 +194,86 @@ export function parseOnboardingStatus(payload: unknown): OnboardingStatus {
   );
 
   if (approvalStatus === 'approved') {
-    return { phase: 'approved', nextIncompleteStep: null };
+    return {
+      phase: 'approved',
+      nextIncompleteStep: null,
+      rejectionReason: null,
+      rejectedSection: null,
+    };
   }
   if (approvalStatus === 'rejected') {
-    return { phase: 'rejected', nextIncompleteStep: null };
+    const rejectedSection =
+      readStep(data, ['rejectedSection', 'rejected_section']) ??
+      readStep(shop, ['rejectedSection', 'rejected_section']);
+
+    return {
+      phase: 'rejected',
+      nextIncompleteStep: rejectedSection ?? firstIncompleteFromSteps(data),
+      rejectionReason:
+        readString(data, ['rejectionReason', 'rejection_reason']) ??
+        readString(shop, ['rejectionReason', 'rejection_reason']),
+      rejectedSection,
+    };
   }
 
   const submitted = readBoolean(data, ['submitted', 'isSubmitted', 'hasSubmitted']);
 
   if (submitted === true) {
-    return { phase: 'submitted', nextIncompleteStep: null };
+    return {
+      phase: 'submitted',
+      nextIncompleteStep: null,
+      rejectionReason: null,
+      rejectedSection: null,
+    };
   }
 
   // submitted === false OR missing → mid-onboarding; never treat pending alone as submitted
   return {
     phase: 'incomplete',
     nextIncompleteStep: firstIncompleteFromSteps(data),
+    rejectionReason: null,
+    rejectedSection: null,
   };
+}
+
+export function hrefForOnboardingStep(step: IncompleteStep): Href {
+  return STEP_HREF[step];
 }
 
 export function hrefForOnboardingStatus(status: OnboardingStatus): Href {
   switch (status.phase) {
     case 'approved':
-      return '/(dashboard)';
+      return '/(app)/(dashboard)';
     case 'rejected':
       return '/(auth)/resubmit';
     case 'submitted':
       return '/(auth)/application-submitted';
     case 'incomplete':
     default:
-      return STEP_HREF[status.nextIncompleteStep ?? 'business-details'];
+      return hrefForOnboardingStep(status.nextIncompleteStep ?? 'business-details');
+  }
+}
+
+function replaceIncompleteStepWithMessage(step: IncompleteStep, message: string) {
+  switch (step) {
+    case 'business-details':
+      router.replace({
+        pathname: '/(auth)/sign-up/business-details',
+        params: { message },
+      });
+      return;
+    case 'documents':
+      router.replace({
+        pathname: '/(auth)/sign-up/documents',
+        params: { message },
+      });
+      return;
+    case 'bank-details':
+      router.replace({
+        pathname: '/(auth)/sign-up/bank-details',
+        params: { message },
+      });
+      return;
   }
 }
 
@@ -246,7 +312,10 @@ export async function fetchOnboardingStatus(token: string): Promise<OnboardingSt
  * Shared post-auth router for Splash and Login.
  * Returns true when navigation succeeded; false when falling back to Login (§1.1).
  */
-export async function routeAfterAuthenticatedSession(token?: string | null): Promise<boolean> {
+export async function routeAfterAuthenticatedSession(
+  token?: string | null,
+  options?: AuthenticatedRouteOptions,
+): Promise<boolean> {
   const sessionToken = token ?? (await getSessionToken());
 
   if (!sessionToken) {
@@ -256,7 +325,14 @@ export async function routeAfterAuthenticatedSession(token?: string | null): Pro
 
   try {
     const status = await fetchOnboardingStatus(sessionToken);
-    router.replace(hrefForOnboardingStatus(status));
+    if (status.phase === 'incomplete' && status.nextIncompleteStep && options?.incompleteMessage) {
+      replaceIncompleteStepWithMessage(
+        status.nextIncompleteStep,
+        options.incompleteMessage(status.nextIncompleteStep),
+      );
+    } else {
+      router.replace(hrefForOnboardingStatus(status));
+    }
     return true;
   } catch (error) {
     console.log('[onboarding/status] routing failed, falling back to login:', error);

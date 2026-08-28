@@ -1,6 +1,6 @@
 import * as Location from 'expo-location';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { getAuth } from '@react-native-firebase/auth';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -80,6 +80,9 @@ function isAbortError(error: unknown) {
 }
 
 export default function SignUpBusinessDetailsScreen() {
+  const { message } = useLocalSearchParams<{ message?: string }>();
+  const routeMessage =
+    typeof message === 'string' ? message : Array.isArray(message) ? message[0] : null;
   const [shopName, setShopName] = useState('');
   const [shopType, setShopType] = useState('');
   const [address, setAddress] = useState('');
@@ -318,6 +321,8 @@ export default function SignUpBusinessDetailsScreen() {
               orders.
             </Text>
           </View>
+
+          {routeMessage ? <Text style={styles.routeMessage}>{routeMessage}</Text> : null}
 
           <View style={styles.form}>
             <View style={styles.field}>
@@ -684,6 +689,15 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
+  },
+  routeMessage: {
+    marginHorizontal: spacing.screen,
+    color: colors.primary,
+    fontFamily: typography.fontFamily,
+    fontSize: typography.sizes.body,
+    lineHeight: typography.lineHeights.body,
+    fontWeight: typography.weights.medium,
+    textAlign: 'center',
   },
   form: {
     gap: spacing.lg,
