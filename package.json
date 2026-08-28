@@ -28,6 +28,7 @@
     "expo-image": "~57.0.2",
     "expo-image-picker": "~57.0.14",
     "expo-linking": "~57.0.8",
+    "expo-location": "~57.0.14",
     "expo-notifications": "~57.0.15",
     "expo-router": "~57.0.17",
     "expo-secure-store": "~57.0.2",
@@ -50,5 +51,9 @@
   "devDependencies": {
     "@types/react": "~19.2.2",
     "typescript": "~6.0.3"
+  },
+  "allowScripts": {
+    "@firebase/util@1.15.2": true,
+    "protobufjs@7.6.5": true
   }
 }

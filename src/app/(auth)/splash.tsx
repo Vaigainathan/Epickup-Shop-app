@@ -1,10 +1,10 @@
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, spacing, typography } from '@/constants/theme';
+import { routeAfterAuthenticatedSession } from '@/lib/onboarding-routing';
 import { getSessionToken } from '@/lib/session';
 
 const logo = require('@/assets/images/login/logo.png');
@@ -43,12 +43,12 @@ export default function SplashScreen() {
 
     async function bootstrap() {
       const startedAt = Date.now();
-      let hasSession = false;
+      let token: string | null = null;
 
       try {
-        hasSession = Boolean(await getSessionToken());
+        token = await getSessionToken();
       } catch {
-        hasSession = false;
+        token = null;
       }
 
       const remaining = Math.max(0, MIN_SPLASH_MS - (Date.now() - startedAt));
@@ -56,7 +56,7 @@ export default function SplashScreen() {
 
       if (cancelled) return;
 
-      router.replace(hasSession ? '/(dashboard)' : '/(auth)/login');
+      await routeAfterAuthenticatedSession(token);
     }
 
     bootstrap();

@@ -2,7 +2,7 @@
   "expo": {
     "name": "EPickup Shop",
     "slug": "epickup-shop",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "epickup-shop",
@@ -50,6 +50,12 @@
         "react-native-maps",
         {
           "androidGoogleMapsApiKey": "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow ePickup Shop to use your location to place your shop on the map."
         }
       ],
       [

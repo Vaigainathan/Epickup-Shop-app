@@ -16,7 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, spacing, typography } from '@/constants/theme';
 import { apiUrl } from '@/lib/api';
-import { extractSessionToken, setSessionToken } from '@/lib/session';
+import { routeAfterAuthenticatedSession } from '@/lib/onboarding-routing';
+import { extractRefreshToken, extractSessionToken, setSessionTokens } from '@/lib/session';
 
 const logo = require('@/assets/images/login/logo.png');
 const blobTop = require('@/assets/images/login/blob-top.png');
@@ -63,16 +64,23 @@ export default function LoginScreen() {
       });
 
       if (response.ok) {
+        let token: string | null = null;
         try {
           const body = await response.json();
-          const token = extractSessionToken(body);
+          token = extractSessionToken(body);
+          const refreshToken = extractRefreshToken(body);
           if (token) {
-            await setSessionToken(token);
+            await setSessionTokens(token, refreshToken);
           }
         } catch {
-          // Persist is best-effort; continue to dashboard after a successful login.
+          // Persist is best-effort; routing still depends on a stored session when available.
         }
-        router.replace('/(dashboard)');
+
+        const routed = await routeAfterAuthenticatedSession(token);
+        if (!routed) {
+          // Status check failed (e.g. no network) — stay on Login with retry (§1.1).
+          setNetworkError(true);
+        }
         return;
       }
 

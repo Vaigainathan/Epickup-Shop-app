@@ -37,6 +37,143 @@ function errorMessage(body: JsonRecord | null, fallback: string): string {
   return fallback;
 }
 
+export type PlacePrediction = {
+  placeId: string;
+  description: string;
+  mainText?: string;
+  secondaryText?: string;
+};
+
+export type PlaceDetails = {
+  latitude: number;
+  longitude: number;
+  formattedAddress: string | null;
+};
+
+function asRecord(value: unknown): JsonRecord | null {
+  return value && typeof value === 'object' ? (value as JsonRecord) : null;
+}
+
+function readNumber(record: JsonRecord | null, keys: string[]): number | null {
+  if (!record) return null;
+
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string' && value.trim().length > 0) {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+
+  return null;
+}
+
+function readString(record: JsonRecord | null, keys: string[]): string | null {
+  if (!record) return null;
+
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function getPlacesData(body: JsonRecord | null): JsonRecord {
+  const data = nestedData(body) ?? body ?? {};
+  return asRecord(data.result) ?? asRecord(data.place) ?? data;
+}
+
+export async function fetchPlaceAutocomplete(
+  input: string,
+  bearerToken: string,
+  signal?: AbortSignal,
+): Promise<PlacePrediction[]> {
+  const query = new URLSearchParams({ input }).toString();
+  const response = await fetch(
+    apiUrl(`/api/shop/onboarding/places/autocomplete?${query}`),
+    {
+      method: 'GET',
+      signal,
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${bearerToken}`,
+      },
+    },
+  );
+
+  const body = await parseJson(response);
+  if (!response.ok) {
+    throw new Error(errorMessage(body, 'Could not search for that place.'));
+  }
+
+  const data = nestedData(body) ?? body ?? {};
+  const rawPredictions = Array.isArray(data.predictions)
+    ? data.predictions
+    : Array.isArray(data.results)
+      ? data.results
+      : [];
+
+  return rawPredictions
+    .map((item): PlacePrediction | null => {
+      const prediction = asRecord(item);
+      const placeId = readString(prediction, ['placeId', 'place_id']);
+      const description = readString(prediction, ['description', 'formattedAddress']);
+      const formatting = asRecord(prediction?.structured_formatting);
+
+      if (!placeId || !description) return null;
+
+      return {
+        placeId,
+        description,
+        mainText: readString(formatting, ['main_text']) ?? undefined,
+        secondaryText: readString(formatting, ['secondary_text']) ?? undefined,
+      };
+    })
+    .filter((prediction): prediction is PlacePrediction => prediction !== null);
+}
+
+export async function fetchPlaceDetails(
+  placeId: string,
+  bearerToken: string,
+): Promise<PlaceDetails> {
+  const query = new URLSearchParams({ placeId }).toString();
+  const response = await fetch(
+    apiUrl(`/api/shop/onboarding/places/details?${query}`),
+    {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${bearerToken}`,
+      },
+    },
+  );
+
+  const body = await parseJson(response);
+  if (!response.ok) {
+    throw new Error(errorMessage(body, 'Could not load that place.'));
+  }
+
+  const data = getPlacesData(body);
+  const geometry = asRecord(data.geometry);
+  const coordinates = asRecord(geometry?.location) ?? asRecord(data.location) ?? data;
+  const latitude = readNumber(coordinates, ['lat', 'latitude']);
+  const longitude = readNumber(coordinates, ['lng', 'lon', 'longitude']);
+
+  if (latitude === null || longitude === null) {
+    throw new Error('That place did not include a map location.');
+  }
+
+  return {
+    latitude,
+    longitude,
+    formattedAddress: readString(data, ['formatted_address', 'formattedAddress', 'address']),
+  };
+}
+
 export async function checkShopPhone(phoneE164: string) {
   const response = await fetch(apiUrl('/api/auth/check-phone'), {
     method: 'POST',
@@ -99,6 +236,33 @@ export async function setShopPassword(password: string, bearerToken: string) {
   const body = await parseJson(response);
   if (!response.ok) {
     throw new Error(errorMessage(body, 'Could not save your password.'));
+  }
+
+  return body ?? {};
+}
+
+export async function saveShopBusinessDetails(
+  details: {
+    shopName: string;
+    shopType: string;
+    address: string;
+    location: { lat: number; lng: number };
+  },
+  bearerToken: string,
+) {
+  const response = await fetch(apiUrl('/api/shop/onboarding/business-details'), {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${bearerToken}`,
+    },
+    body: JSON.stringify(details),
+  });
+
+  const body = await parseJson(response);
+  if (!response.ok) {
+    throw new Error(errorMessage(body, 'Could not save your business details.'));
   }
 
   return body ?? {};
