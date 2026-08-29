@@ -282,10 +282,12 @@ export default function AddProductScreen() {
     };
 
     try {
-      if (productId) {
-        await updateShopProduct(productId, input);
-      } else {
-        await createShopProduct(input);
+      const saved = productId
+        ? await updateShopProduct(productId, input)
+        : await createShopProduct(input);
+      if (__DEV__) {
+        const confirmed = await fetchShopProduct(saved.id);
+        console.log('[product]', { id: confirmed.id, photoUrl: confirmed.photoUrl });
       }
       router.back();
     } catch (error) {

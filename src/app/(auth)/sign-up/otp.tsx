@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, spacing, typography } from '@/constants/theme';
 import { verifyFirebaseShopToken } from '@/lib/auth-api';
+import { isResetIntent, RESET_INTENT } from '@/lib/auth-intent';
 import {
   clearPendingPhoneAuth,
   confirmPhoneCode,
@@ -38,7 +39,8 @@ const RESEND_SECONDS = 30;
 const OTP_LENGTH = 6;
 
 export default function SignUpOtpScreen() {
-  const { phone: phoneParam } = useLocalSearchParams<{ phone?: string }>();
+  const { phone: phoneParam, intent } = useLocalSearchParams<{ phone?: string; intent?: string }>();
+  const reset = isResetIntent(intent);
   const pending = getPendingPhoneAuth();
   const phone = phoneParam ?? pending?.phone ?? '';
 
@@ -51,9 +53,16 @@ export default function SignUpOtpScreen() {
 
   useEffect(() => {
     if (!getPendingPhoneAuth()) {
-      router.replace('/(auth)/sign-up');
+      if (reset) {
+        router.replace({
+          pathname: '/(auth)/sign-up',
+          params: { intent: RESET_INTENT },
+        });
+      } else {
+        router.replace('/(auth)/sign-up');
+      }
     }
-  }, []);
+  }, [reset]);
 
   useEffect(() => {
     if (secondsLeft <= 0) return;
@@ -81,7 +90,14 @@ export default function SignUpOtpScreen() {
 
       await setSessionTokens(token, refreshToken);
       clearPendingPhoneAuth();
-      router.replace('/(auth)/sign-up/set-password');
+      if (reset) {
+        router.replace({
+          pathname: '/(auth)/sign-up/set-password',
+          params: { intent: RESET_INTENT },
+        });
+      } else {
+        router.replace('/(auth)/sign-up/set-password');
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Invalid verification code';
       setError(message);
@@ -170,7 +186,8 @@ export default function SignUpOtpScreen() {
             </View>
             <Text style={styles.title}>Verify OTP</Text>
             <Text style={styles.subtitle}>
-              Enter the 6-digit code sent to{'\n'}
+              {reset ? 'Verify to reset your password' : 'Enter the 6-digit code sent to'}
+              {'\n'}
               <Text style={styles.phoneHighlight}>{phone || 'your phone'}</Text>
             </Text>
           </View>

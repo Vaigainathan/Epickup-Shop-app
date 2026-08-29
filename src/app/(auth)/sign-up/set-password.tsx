@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,6 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, spacing, typography } from '@/constants/theme';
 import { setShopPassword } from '@/lib/auth-api';
+import { isResetIntent } from '@/lib/auth-intent';
+import { routeAfterAuthenticatedSession } from '@/lib/onboarding-routing';
 import { getSessionToken } from '@/lib/session';
 
 const logo = require('@/assets/images/login/logo.png');
@@ -44,6 +46,9 @@ const REQUIREMENTS: Requirement[] = [
 ];
 
 export default function SetPasswordScreen() {
+  const { intent } = useLocalSearchParams<{ intent?: string }>();
+  const reset = isResetIntent(intent);
+
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -76,6 +81,10 @@ export default function SetPasswordScreen() {
       }
 
       await setShopPassword(password, token);
+      if (reset) {
+        await routeAfterAuthenticatedSession(token);
+        return;
+      }
       router.replace('/(auth)/sign-up/business-details');
     } catch (error) {
       const message = error instanceof Error ? error.message : '';
@@ -128,9 +137,11 @@ export default function SetPasswordScreen() {
             <View style={styles.logoCard}>
               <Image source={logo} style={styles.logo} contentFit="contain" />
             </View>
-            <Text style={styles.title}>Set Password</Text>
+            <Text style={styles.title}>{reset ? 'Reset Password' : 'Set Password'}</Text>
             <Text style={styles.subtitle}>
-              Create a strong password for your shop login. You'll use this with your phone number.
+              {reset
+                ? "Choose a new password for your shop login. You'll use this with your phone number."
+                : "Create a strong password for your shop login. You'll use this with your phone number."}
             </Text>
           </View>
 

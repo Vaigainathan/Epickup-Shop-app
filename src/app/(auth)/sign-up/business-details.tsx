@@ -1,8 +1,7 @@
-import * as Location from 'expo-location';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { getAuth } from '@react-native-firebase/auth';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -15,16 +14,11 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import MapView, { Marker, Region } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, spacing, typography } from '@/constants/theme';
-import {
-  fetchPlaceAutocomplete,
-  fetchPlaceDetails,
-  PlacePrediction,
-  saveShopBusinessDetails,
-} from '@/lib/auth-api';
+import { saveShopBusinessDetails } from '@/lib/auth-api';
+import { useLocationPicker } from '@/lib/location-picker-context';
 import { getSessionToken } from '@/lib/session';
 
 const logo = require('@/assets/images/login/logo.png');
@@ -53,32 +47,6 @@ type Coordinate = {
   longitude: number;
 };
 
-const INDIA_REGION: Region = {
-  latitude: 20.5937,
-  longitude: 78.9629,
-  latitudeDelta: 20,
-  longitudeDelta: 20,
-};
-
-function formatAddress(place: Location.LocationGeocodedAddress) {
-  return [
-    place.name,
-    place.street,
-    place.district,
-    place.city,
-    place.region,
-    place.postalCode,
-    place.country,
-  ]
-    .filter((part): part is string => Boolean(part))
-    .filter((part, index, parts) => parts.indexOf(part) === index)
-    .join(', ');
-}
-
-function isAbortError(error: unknown) {
-  return (error as any)?.name === 'AbortError';
-}
-
 export default function SignUpBusinessDetailsScreen() {
   const { message } = useLocalSearchParams<{ message?: string }>();
   const routeMessage =
@@ -88,144 +56,23 @@ export default function SignUpBusinessDetailsScreen() {
   const [address, setAddress] = useState('');
   const [location, setLocation] = useState<Coordinate | null>(null);
   const [typeModalVisible, setTypeModalVisible] = useState(false);
-  const [locationActive, setLocationActive] = useState(false);
-  const [search, setSearch] = useState('');
-  const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const [mapReady, setMapReady] = useState(false);
-  const [mapError, setMapError] = useState<string | null>(null);
-  const [mapVersion, setMapVersion] = useState(0);
-  const [locationError, setLocationError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [locationSectionY, setLocationSectionY] = useState(0);
+  const { pendingResult, clearResult } = useLocationPicker();
   const scrollRef = useRef<ScrollView>(null);
-  const mapRef = useRef<MapView>(null);
-  const searchRequestId = useRef(0);
 
   const verifiedPhone = getAuth().currentUser?.phoneNumber ?? 'Verified mobile number';
-  const canSubmit = Boolean(shopName.trim() && shopType && location && !submitting);
-  const selectedLocationRegion = useMemo<Region>(
-    () => ({
-      ...(location ?? INDIA_REGION),
-      latitudeDelta: location ? 0.02 : INDIA_REGION.latitudeDelta,
-      longitudeDelta: location ? 0.02 : INDIA_REGION.longitudeDelta,
-    }),
-    [location],
-  );
+  const canSubmit = Boolean(shopName.trim() && shopType && address.trim() && location && !submitting);
 
   useEffect(() => {
-    const requestId = ++searchRequestId.current;
-    if (!locationActive || search.trim().length < 2) return;
-
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      setSearching(true);
-      setSearchError(null);
-
-      try {
-        const token = await getSessionToken();
-        if (!token) throw new Error('Your session expired. Please verify your phone again.');
-
-        const nextPredictions = await fetchPlaceAutocomplete(
-          search.trim(),
-          token,
-          controller.signal,
-        );
-        if (requestId === searchRequestId.current) {
-          setPredictions(nextPredictions);
-        }
-      } catch (error) {
-        if (!isAbortError(error) && requestId === searchRequestId.current) {
-          setSearchError(error instanceof Error ? error.message : 'Could not search for a place.');
-          setPredictions([]);
-        }
-      } finally {
-        if (requestId === searchRequestId.current) setSearching(false);
-      }
-    }, 300);
-
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [locationActive, search]);
-
-  useEffect(() => {
-    if (mapReady) return;
-
-    const timer = setTimeout(() => {
-      setMapError('The map could not be loaded. Check your connection or Maps configuration.');
-    }, 10000);
-
-    return () => clearTimeout(timer);
-  }, [mapReady, mapVersion]);
-
-  async function reverseGeocode(coordinate: Coordinate, fallbackAddress?: string | null) {
-    try {
-      const results = await Location.reverseGeocodeAsync(coordinate);
-      const nextAddress = results[0] ? formatAddress(results[0]) : '';
-      setAddress(nextAddress || fallbackAddress || '');
-    } catch {
-      setAddress(fallbackAddress || '');
-    }
-  }
-
-  async function applyCoordinate(coordinate: Coordinate, fallbackAddress?: string | null) {
-    setLocation(coordinate);
-    setLocationError(null);
-    setMapError(null);
-    mapRef.current?.animateToRegion(
-      {
-        ...coordinate,
-        latitudeDelta: 0.02,
-        longitudeDelta: 0.02,
-      },
-      350,
-    );
-    await reverseGeocode(coordinate, fallbackAddress);
-  }
-
-  async function selectPrediction(prediction: PlacePrediction) {
-    setSearch(prediction.description);
-    setPredictions([]);
-    setSearchError(null);
-
-    try {
-      const token = await getSessionToken();
-      if (!token) throw new Error('Your session expired. Please verify your phone again.');
-
-      const details = await fetchPlaceDetails(prediction.placeId, token);
-      await applyCoordinate(
-        { latitude: details.latitude, longitude: details.longitude },
-        details.formattedAddress,
-      );
-    } catch (error) {
-      setSearchError(error instanceof Error ? error.message : 'Could not load that place.');
-    }
-  }
-
-  async function recenter() {
-    setLocationError(null);
-    const permission = await Location.requestForegroundPermissionsAsync();
-    if (permission.status !== Location.PermissionStatus.GRANTED) {
-      setLocationError('Location permission is needed to recenter the map.');
-      return;
-    }
-
-    try {
-      const result = await Location.getCurrentPositionAsync({
-        accuracy: Location.LocationAccuracy.Balanced,
-      });
-      await applyCoordinate({
-        latitude: result.coords.latitude,
-        longitude: result.coords.longitude,
-      });
-    } catch {
-      setLocationError('Could not determine your current location. Try searching instead.');
-    }
-  }
+    if (!pendingResult) return;
+    setLocation({
+      latitude: pendingResult.latitude,
+      longitude: pendingResult.longitude,
+    });
+    setAddress(pendingResult.address);
+    clearResult();
+  }, [clearResult, pendingResult]);
 
   async function submit() {
     if (!canSubmit || !location) return;
@@ -257,14 +104,15 @@ export default function SignUpBusinessDetailsScreen() {
     }
   }
 
-  function focusLocation() {
-    setLocationActive(true);
-    setTimeout(() => {
-      scrollRef.current?.scrollTo({
-        y: Math.max(0, locationSectionY - spacing.md),
-        animated: true,
-      });
-    }, 0);
+  function openLocationPicker() {
+    router.push({
+      pathname: '/(auth)/sign-up/location-picker',
+      params: {
+        initialAddress: address,
+        initialLatitude: location?.latitude.toString() ?? '',
+        initialLongitude: location?.longitude.toString() ?? '',
+      },
+    });
   }
 
   return (
@@ -291,6 +139,7 @@ export default function SignUpBusinessDetailsScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
           ref={scrollRef}
+          style={styles.formScroll}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
@@ -364,132 +213,32 @@ export default function SignUpBusinessDetailsScreen() {
 
             <View style={styles.field}>
               <Text style={styles.label}>Registered Address</Text>
-              <View style={styles.addressBox}>
-                <Text style={[styles.addressText, !address && styles.placeholder]}>
-                  {address || 'Address will be filled after you pin your location'}
-                </Text>
-              </View>
+              <TextInput
+                value={address}
+                onChangeText={(value) => {
+                  setAddress(value);
+                  setSubmitError(null);
+                }}
+                placeholder="Address will be filled after you pin your location"
+                placeholderTextColor={colors.textMuted}
+                editable={!submitting}
+                multiline
+                textAlignVertical="top"
+                style={styles.addressInput}
+              />
             </View>
 
-            <View
-              onLayout={(event) => setLocationSectionY(event.nativeEvent.layout.y)}
-              style={styles.locationSection}>
+            <View style={styles.locationSection}>
               <Pressable
                 accessibilityRole="button"
                 disabled={submitting}
-                onPress={focusLocation}
+                onPress={openLocationPicker}
                 style={styles.pinButton}>
                 <Text style={styles.pinIcon}>⌖</Text>
-                <Text style={styles.pinButtonText}>Pin Location on Map</Text>
+                <Text style={styles.pinButtonText}>
+                  {location ? 'Edit Location on Map' : 'Pin Location on Map'}
+                </Text>
               </Pressable>
-
-              {locationActive ? (
-                <View style={styles.searchWrap}>
-                  <TextInput
-                    value={search}
-                    onChangeText={(value) => {
-                      setSearch(value);
-                      if (value.trim().length < 2) {
-                        setPredictions([]);
-                        setSearching(false);
-                        setSearchError(null);
-                      }
-                    }}
-                    placeholder="Search for your shop location"
-                    placeholderTextColor={colors.textMuted}
-                    editable={!submitting}
-                    style={styles.searchInput}
-                  />
-                  {searching ? <ActivityIndicator color={colors.primary} size="small" /> : null}
-                  {predictions.length > 0 ? (
-                    <View style={styles.predictions}>
-                      {predictions.map((prediction) => (
-                        <Pressable
-                          key={prediction.placeId}
-                          disabled={submitting}
-                          onPress={() => selectPrediction(prediction)}
-                          style={styles.prediction}>
-                          <Text style={styles.predictionMain}>
-                            {prediction.mainText || prediction.description}
-                          </Text>
-                          {prediction.secondaryText ? (
-                            <Text style={styles.predictionSecondary}>{prediction.secondaryText}</Text>
-                          ) : null}
-                        </Pressable>
-                      ))}
-                    </View>
-                  ) : null}
-                </View>
-              ) : null}
-
-              {searchError ? <Text style={styles.locationError}>{searchError}</Text> : null}
-              {locationError ? <Text style={styles.locationError}>{locationError}</Text> : null}
-
-              <View style={styles.mapCard}>
-                <MapView
-                  key={`map-${mapVersion}`}
-                  ref={mapRef}
-                  initialRegion={selectedLocationRegion}
-                  onMapReady={() => {
-                    setMapReady(true);
-                    setMapError(null);
-                  }}
-                  onPress={(event) => applyCoordinate(event.nativeEvent.coordinate)}
-                  style={styles.map}>
-                  {location ? (
-                    <Marker
-                      coordinate={location}
-                      draggable
-                      title="Shop Location"
-                      onDragEnd={(event) => applyCoordinate(event.nativeEvent.coordinate)}
-                    />
-                  ) : null}
-                </MapView>
-
-                {mapError ? (
-                  <View style={styles.mapErrorOverlay}>
-                    <Text style={styles.mapErrorText}>{mapError}</Text>
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() => {
-                        setMapError(null);
-                        setMapReady(false);
-                        setMapVersion((value) => value + 1);
-                      }}
-                      style={styles.mapRetry}>
-                      <Text style={styles.mapRetryText}>Retry map</Text>
-                    </Pressable>
-                  </View>
-                ) : null}
-
-                <View style={styles.mapControls}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Zoom in"
-                    onPress={() => mapRef.current?.getCamera().then((camera) => {
-                      mapRef.current?.animateCamera({ ...camera, zoom: (camera.zoom ?? 12) + 1 });
-                    })}
-                    style={styles.mapControl}>
-                    <Text style={styles.mapControlText}>+</Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Zoom out"
-                    onPress={() => mapRef.current?.getCamera().then((camera) => {
-                      mapRef.current?.animateCamera({ ...camera, zoom: Math.max(1, (camera.zoom ?? 12) - 1) });
-                    })}
-                    style={styles.mapControl}>
-                    <Text style={styles.mapControlText}>−</Text>
-                  </Pressable>
-                </View>
-                <Pressable accessibilityRole="button" onPress={recenter} style={styles.recenter}>
-                  <Text style={styles.recenterIcon}>⌾</Text>
-                  <Text style={styles.recenterText}>Recenter</Text>
-                </Pressable>
-                <View style={styles.attribution}>
-                  <Text style={styles.attributionText}>Google Maps</Text>
-                </View>
-              </View>
             </View>
           </View>
 
@@ -563,6 +312,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   flex: {
+    flex: 1,
+  },
+  formScroll: {
     flex: 1,
   },
   header: {
@@ -770,7 +522,7 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.label,
     fontWeight: typography.weights.semibold,
   },
-  addressBox: {
+  addressInput: {
     minHeight: 104,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
@@ -778,8 +530,6 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 12,
     backgroundColor: colors.white,
-  },
-  addressText: {
     color: colors.heading,
     fontFamily: typography.fontFamily,
     fontSize: typography.sizes.input,
@@ -810,163 +560,6 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.body,
     fontWeight: typography.weights.semibold,
     letterSpacing: typography.letterSpacing.button,
-  },
-  searchWrap: {
-    position: 'relative',
-    minHeight: spacing.input,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    borderRadius: 12,
-    backgroundColor: colors.white,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-  },
-  searchInput: {
-    flex: 1,
-    height: spacing.input - 2,
-    color: colors.heading,
-    fontFamily: typography.fontFamily,
-    fontSize: typography.sizes.body,
-  },
-  predictions: {
-    position: 'absolute',
-    top: spacing.input + 4,
-    left: 0,
-    right: 0,
-    zIndex: 5,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    backgroundColor: colors.white,
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 5,
-  },
-  prediction: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  predictionMain: {
-    color: colors.heading,
-    fontFamily: typography.fontFamily,
-    fontSize: typography.sizes.body,
-    fontWeight: typography.weights.medium,
-  },
-  predictionSecondary: {
-    marginTop: 2,
-    color: colors.textMuted,
-    fontFamily: typography.fontFamily,
-    fontSize: typography.sizes.label,
-  },
-  locationError: {
-    color: colors.error,
-    fontFamily: typography.fontFamily,
-    fontSize: typography.sizes.label,
-    lineHeight: typography.lineHeights.label,
-  },
-  mapCard: {
-    height: 172,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    backgroundColor: colors.mapFill,
-    overflow: 'hidden',
-  },
-  map: {
-    ...StyleSheet.absoluteFill,
-  },
-  mapControls: {
-    position: 'absolute',
-    right: spacing.sm,
-    top: spacing.sm,
-    gap: spacing.xs,
-  },
-  mapControl: {
-    width: 32,
-    height: 32,
-    borderRadius: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  mapControlText: {
-    color: colors.heading,
-    fontSize: 22,
-    lineHeight: 24,
-  },
-  recenter: {
-    position: 'absolute',
-    left: spacing.sm,
-    bottom: spacing.sm,
-    height: 32,
-    paddingHorizontal: spacing.md,
-    borderRadius: 9999,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.background,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  recenterIcon: {
-    color: colors.primary,
-    fontSize: 17,
-  },
-  recenterText: {
-    color: colors.primary,
-    fontFamily: typography.fontFamily,
-    fontSize: typography.sizes.label,
-    fontWeight: typography.weights.medium,
-  },
-  attribution: {
-    position: 'absolute',
-    right: spacing.sm,
-    bottom: spacing.sm,
-    padding: spacing.xs,
-    borderRadius: 4,
-    backgroundColor: colors.overlayMapLabel,
-  },
-  attributionText: {
-    color: colors.textMuted,
-    fontFamily: typography.fontFamily,
-    fontSize: typography.sizes.caption,
-  },
-  mapErrorOverlay: {
-    ...StyleSheet.absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.md,
-    backgroundColor: colors.overlayMapLabel,
-  },
-  mapErrorText: {
-    color: colors.textSecondary,
-    fontFamily: typography.fontFamily,
-    fontSize: typography.sizes.label,
-    lineHeight: typography.lineHeights.label,
-    textAlign: 'center',
-  },
-  mapRetry: {
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: 9999,
-    backgroundColor: colors.primary,
-  },
-  mapRetryText: {
-    color: colors.white,
-    fontFamily: typography.fontFamily,
-    fontSize: typography.sizes.label,
-    fontWeight: typography.weights.semibold,
   },
   trust: {
     minHeight: 80,

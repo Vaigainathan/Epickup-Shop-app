@@ -1,4 +1,5 @@
 import { apiUrl } from '@/lib/api';
+import { appendLocalFile } from '@/lib/pick-media';
 import { getSessionToken } from '@/lib/session';
 
 type JsonRecord = Record<string, unknown>;
@@ -286,7 +287,7 @@ function serializeVariants(variants: ShopProductVariant[]) {
   });
 }
 
-function appendProductFields(form: FormData, input: ShopProductInput) {
+async function appendProductFields(form: FormData, input: ShopProductInput) {
   form.append('name', input.name);
   form.append('description', input.description);
   form.append('price', String(input.price));
@@ -314,11 +315,7 @@ function appendProductFields(form: FormData, input: ShopProductInput) {
   }
 
   if (input.photo) {
-    form.append('photo', {
-      uri: input.photo.uri,
-      name: input.photo.fileName,
-      type: input.photo.mimeType,
-    } as unknown as Blob);
+    await appendLocalFile(form, 'photo', input.photo);
   }
 }
 
@@ -400,7 +397,7 @@ export async function fetchShopProduct(id: string): Promise<ShopProduct> {
 
 export async function createShopProduct(input: ShopProductInput): Promise<ShopProduct> {
   const form = new FormData();
-  appendProductFields(form, input);
+  await appendProductFields(form, input);
   const body = await requestJson(
     '/api/shop/products',
     { method: 'POST', body: form },
@@ -411,7 +408,7 @@ export async function createShopProduct(input: ShopProductInput): Promise<ShopPr
 
 export async function updateShopProduct(id: string, input: ShopProductInput): Promise<ShopProduct> {
   const form = new FormData();
-  appendProductFields(form, input);
+  await appendProductFields(form, input);
   const body = await requestJson(
     `/api/shop/products/${encodeURIComponent(id)}`,
     { method: 'PUT', body: form },

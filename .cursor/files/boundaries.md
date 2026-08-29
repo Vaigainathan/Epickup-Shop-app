@@ -10,3 +10,5 @@
   use that, don't spin up a second instance.
 -Figma is a reference for layout, spacing, and component structure only. Never carry forward literal placeholder content — dummy shop names, sample product names, mock order data, category examples shown in mockups — into real code, defaults, or seed data. Treat all visible Figma text content as illustrative unless explicitly specified in the Workflow or Architecture Blueprint.
 -Never read or write any file via an absolute path that resolves outside this workspace folder (c:\Dev\EPickup-app\shop-app). If backend work is needed, tell the user explicitly that this requires the separate backend Cursor window — do not attempt to reach it directly, even if the path is known from earlier context.
+
+-Stop starting or using an Android emulator for any testing on this project, automatically or otherwise. The user has a physical Samsung S25 Ultra connected via USB with debugging enabled — use that exclusively going forward. Confirm adb devices shows it before doing anything else.

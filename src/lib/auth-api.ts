@@ -1,4 +1,5 @@
 import { apiUrl } from '@/lib/api';
+import { appendLocalFile } from '@/lib/pick-media';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -236,6 +237,39 @@ export async function setShopPassword(password: string, bearerToken: string) {
   const body = await parseJson(response);
   if (!response.ok) {
     throw new Error(errorMessage(body, 'Could not save your password.'));
+  }
+
+  return body ?? {};
+}
+
+export type OnboardingDocumentField = 'gst' | 'fssai';
+
+export type OnboardingDocumentFile = {
+  uri: string;
+  mimeType: string;
+  fileName: string;
+};
+
+export async function uploadShopOnboardingDocument(
+  field: OnboardingDocumentField,
+  file: OnboardingDocumentFile,
+  bearerToken: string,
+) {
+  const form = new FormData();
+  await appendLocalFile(form, field, file);
+
+  const response = await fetch(apiUrl('/api/shop/onboarding/documents'), {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${bearerToken}`,
+    },
+    body: form,
+  });
+
+  const body = await parseJson(response);
+  if (!response.ok) {
+    throw new Error(errorMessage(body, 'Could not upload this document.'));
   }
 
   return body ?? {};
