@@ -1,7 +1,6 @@
 import { Image } from 'expo-image';
-import { router, useLocalSearchParams } from 'expo-router';
-import { getAuth } from '@react-native-firebase/auth';
-import { useEffect, useRef, useState } from 'react';
+import { router } from 'expo-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -16,92 +15,209 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
-import { saveShopBusinessDetails } from '@/lib/auth-api';
+import {
+  DashboardApiError,
+  fetchShopProfile,
+  ShopCoordinate,
+  updateShopProfile,
+} from '@/lib/dashboard-api';
 import { useLocationPicker } from '@/lib/location-picker-context';
-import { getSessionToken } from '@/lib/session';
 import { SHOP_TYPES } from '@/lib/shop-types';
 
 const logo = require('@/assets/images/login/logo.png');
-const blobBottom = require('@/assets/images/login/blob-bottom.png');
 
-type Coordinate = {
-  latitude: number;
-  longitude: number;
+type Draft = {
+  shopName: string;
+  shopType: string;
+  address: string;
+  location: ShopCoordinate | null;
 };
 
-export default function SignUpBusinessDetailsScreen() {
-  const { message } = useLocalSearchParams<{ message?: string }>();
-  const routeMessage =
-    typeof message === 'string' ? message : Array.isArray(message) ? message[0] : null;
-  const [shopName, setShopName] = useState('');
-  const [shopType, setShopType] = useState('');
-  const [address, setAddress] = useState('');
-  const [location, setLocation] = useState<Coordinate | null>(null);
+function sameLocation(a: ShopCoordinate | null, b: ShopCoordinate | null): boolean {
+  if (a === null && b === null) return true;
+  if (a === null || b === null) return false;
+  return a.latitude === b.latitude && a.longitude === b.longitude;
+}
+
+function isInvalidCredentials(error: unknown): boolean {
+  return (
+    error instanceof DashboardApiError &&
+    error.status === 401 &&
+    error.code === 'INVALID_CREDENTIALS'
+  );
+}
+
+export default function BusinessProfileScreen() {
+  const [draft, setDraft] = useState<Draft>({
+    shopName: '',
+    shopType: '',
+    address: '',
+    location: null,
+  });
+  const [initial, setInitial] = useState<Draft | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [typeModalVisible, setTypeModalVisible] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [savedOpen, setSavedOpen] = useState(false);
+  const [phone, setPhone] = useState<string | null>(null);
   const { pendingResult, clearResult } = useLocationPicker();
-  const scrollRef = useRef<ScrollView>(null);
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const verifiedPhone = getAuth().currentUser?.phoneNumber ?? 'Verified mobile number';
-  const canSubmit = Boolean(shopName.trim() && shopType && address.trim() && location && !submitting);
+  const typeOptions = useMemo(() => {
+    if (draft.shopType && !(SHOP_TYPES as readonly string[]).includes(draft.shopType)) {
+      return [draft.shopType, ...SHOP_TYPES];
+    }
+    return [...SHOP_TYPES];
+  }, [draft.shopType]);
+
+  const complete = Boolean(
+    draft.shopName.trim() && draft.shopType && draft.address.trim() && draft.location && !submitting,
+  );
+  const dirty =
+    initial !== null &&
+    (draft.shopName.trim() !== initial.shopName.trim() ||
+      draft.shopType !== initial.shopType ||
+      draft.address.trim() !== initial.address.trim() ||
+      !sameLocation(draft.location, initial.location));
+  const canConfirm = complete && dirty;
+
+  useEffect(() => {
+    return () => {
+      if (savedTimer.current) clearTimeout(savedTimer.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!pendingResult) return;
-    setLocation({
-      latitude: pendingResult.latitude,
-      longitude: pendingResult.longitude,
-    });
-    setAddress(pendingResult.address);
+    setDraft((current) => ({
+      ...current,
+      location: {
+        latitude: pendingResult.latitude,
+        longitude: pendingResult.longitude,
+      },
+      address: pendingResult.address,
+    }));
+    setSubmitError(null);
     clearResult();
   }, [clearResult, pendingResult]);
 
-  async function submit() {
-    if (!canSubmit || !location) return;
+  async function load() {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const profile = await fetchShopProfile();
+      const next: Draft = {
+        shopName: profile.shopName,
+        shopType: profile.shopType ?? '',
+        address: profile.address ?? '',
+        location: profile.location,
+      };
+      setPhone(profile.phone);
+      setDraft(next);
+      setInitial(next);
+    } catch (error) {
+      setLoadError(
+        error instanceof DashboardApiError
+          ? error.message
+          : 'Could not load your business profile.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  function openLocationPicker() {
+    router.push({
+      pathname: '/(app)/(settings)/location-picker',
+      params: {
+        initialAddress: draft.address,
+        initialLatitude: draft.location?.latitude.toString() ?? '',
+        initialLongitude: draft.location?.longitude.toString() ?? '',
+      },
+    });
+  }
+
+  function openConfirm() {
+    if (!canConfirm) return;
+    setCurrentPassword('');
+    setPasswordError(null);
+    setSubmitError(null);
+    setConfirmOpen(true);
+  }
+
+  async function submitWithPassword() {
+    if (!draft.location || submitting) return;
+    const password = currentPassword.trim();
+    if (!password) {
+      setPasswordError('Enter your current password to save these changes.');
+      return;
+    }
 
     setSubmitting(true);
+    setPasswordError(null);
     setSubmitError(null);
 
     try {
-      const token = await getSessionToken();
-      if (!token) throw new Error('Your session expired. Please verify your phone again.');
-
-      await saveShopBusinessDetails(
-        {
-          shopName: shopName.trim(),
-          shopType,
-          address,
-          location: {
-            lat: location.latitude,
-            lng: location.longitude,
-          },
+      await updateShopProfile({
+        currentPassword: password,
+        shopName: draft.shopName.trim(),
+        shopType: draft.shopType,
+        address: draft.address.trim(),
+        location: {
+          lat: draft.location.latitude,
+          lng: draft.location.longitude,
         },
-        token,
-      );
-      router.replace('/(auth)/sign-up/documents');
+      });
+      setConfirmOpen(false);
+      setCurrentPassword('');
+      setSavedOpen(true);
+      savedTimer.current = setTimeout(() => {
+        router.back();
+      }, 1400);
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : 'Could not save your details.');
+      if (isInvalidCredentials(error)) {
+        setPasswordError('That password is incorrect. Your changes were not saved.');
+        return;
+      }
+      setSubmitError(
+        error instanceof DashboardApiError
+          ? error.message
+          : 'Could not update your business profile.',
+      );
     } finally {
       setSubmitting(false);
     }
   }
 
-  function openLocationPicker() {
-    router.push({
-      pathname: '/(auth)/sign-up/location-picker',
-      params: {
-        initialAddress: address,
-        initialLatitude: location?.latitude.toString() ?? '',
-        initialLongitude: location?.longitude.toString() ?? '',
-      },
-    });
+  if (loading && !initial) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <ScreenLoading />
+      </SafeAreaView>
+    );
+  }
+
+  if (loadError && !initial) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <ScreenError message={loadError} onRetry={load} />
+      </SafeAreaView>
+    );
   }
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Image source={blobBottom} style={styles.blobBottom} contentFit="contain" pointerEvents="none" />
-
       <View style={styles.header}>
         <Pressable
           accessibilityRole="button"
@@ -113,7 +229,7 @@ export default function SignUpBusinessDetailsScreen() {
         </Pressable>
         <View style={styles.headerBrand}>
           <Image source={logo} style={styles.headerLogo} contentFit="contain" />
-          <Text style={styles.headerTitle}>Sign Up</Text>
+          <Text style={styles.headerTitle}>Business Profile</Text>
         </View>
       </View>
 
@@ -121,48 +237,24 @@ export default function SignUpBusinessDetailsScreen() {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
-          ref={scrollRef}
           style={styles.formScroll}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
-          <View style={styles.progress}>
-            <View style={styles.progressLine} />
-            {(['1', '2', '3'] as const).map((step, index) => {
-              const active = index === 0;
-              const label = ['Business', 'Documents', 'Review'][index];
-              return (
-                <View key={step} style={styles.progressStep}>
-                  <View style={[styles.progressCircle, active && styles.progressCircleActive]}>
-                    <Text style={[styles.progressNumber, active && styles.progressNumberActive]}>
-                      {step}
-                    </Text>
-                  </View>
-                  <Text style={[styles.progressLabel, active && styles.progressLabelActive]}>
-                    {label}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-
           <View style={styles.hero}>
-            <Text style={styles.heroTitle}>Let&apos;s set up your shop</Text>
+            <Text style={styles.heroTitle}>Shop details</Text>
             <Text style={styles.heroBody}>
-              Provide your official business information to start receiving and managing pickup
-              orders.
+              Update your shop name, category, and map pin. Saving requires your current password.
             </Text>
           </View>
-
-          {routeMessage ? <Text style={styles.routeMessage}>{routeMessage}</Text> : null}
 
           <View style={styles.form}>
             <View style={styles.field}>
               <Text style={styles.label}>Shop Name</Text>
               <TextInput
-                value={shopName}
+                value={draft.shopName}
                 onChangeText={(value) => {
-                  setShopName(value);
+                  setDraft((current) => ({ ...current, shopName: value }));
                   setSubmitError(null);
                 }}
                 placeholder="Enter your shop name"
@@ -179,8 +271,8 @@ export default function SignUpBusinessDetailsScreen() {
                 disabled={submitting}
                 onPress={() => setTypeModalVisible(true)}
                 style={styles.select}>
-                <Text style={[styles.selectText, !shopType && styles.placeholder]}>
-                  {shopType || 'Select Business Type'}
+                <Text style={[styles.selectText, !draft.shopType && styles.placeholder]}>
+                  {draft.shopType || 'Select Business Type'}
                 </Text>
                 <Text style={styles.chevron}>⌄</Text>
               </Pressable>
@@ -189,17 +281,17 @@ export default function SignUpBusinessDetailsScreen() {
             <View style={styles.field}>
               <Text style={styles.label}>Phone Number</Text>
               <View style={styles.phoneDisplay}>
-                <Text style={styles.phoneText}>{verifiedPhone}</Text>
-                <Text style={styles.verifiedText}>Verified</Text>
+                <Text style={styles.phoneText}>{phone ?? '—'}</Text>
+                {phone ? <Text style={styles.verifiedText}>Verified</Text> : null}
               </View>
             </View>
 
             <View style={styles.field}>
               <Text style={styles.label}>Registered Address</Text>
               <TextInput
-                value={address}
+                value={draft.address}
                 onChangeText={(value) => {
-                  setAddress(value);
+                  setDraft((current) => ({ ...current, address: value }));
                   setSubmitError(null);
                 }}
                 placeholder="Address will be filled after you pin your location"
@@ -219,7 +311,7 @@ export default function SignUpBusinessDetailsScreen() {
                 style={styles.pinButton}>
                 <Text style={styles.pinIcon}>⌖</Text>
                 <Text style={styles.pinButtonText}>
-                  {location ? 'Edit Location on Map' : 'Pin Location on Map'}
+                  {draft.location ? 'Edit Location on Map' : 'Pin Location on Map'}
                 </Text>
               </Pressable>
             </View>
@@ -237,21 +329,14 @@ export default function SignUpBusinessDetailsScreen() {
 
           <Pressable
             accessibilityRole="button"
-            disabled={!canSubmit}
-            onPress={submit}
+            disabled={!canConfirm}
+            onPress={openConfirm}
             style={({ pressed }) => [
               styles.continueButton,
-              !canSubmit && styles.continueDisabled,
-              pressed && canSubmit && styles.pressed,
+              !canConfirm && styles.continueDisabled,
+              pressed && canConfirm && styles.pressed,
             ]}>
-            {submitting ? (
-              <ActivityIndicator color={colors.white} />
-            ) : (
-              <>
-                <Text style={styles.continueText}>Continue</Text>
-                <Text style={styles.continueArrow}>→</Text>
-              </>
-            )}
+            <Text style={styles.continueText}>Confirm Changes</Text>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -266,24 +351,97 @@ export default function SignUpBusinessDetailsScreen() {
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>Select Business Type</Text>
             <ScrollView showsVerticalScrollIndicator={false}>
-              {SHOP_TYPES.map((type) => (
+              {typeOptions.map((type) => (
                 <Pressable
                   key={type}
                   onPress={() => {
-                    setShopType(type);
+                    setDraft((current) => ({ ...current, shopType: type }));
                     setTypeModalVisible(false);
                     setSubmitError(null);
                   }}
-                  style={[styles.option, type === shopType && styles.optionSelected]}>
-                  <Text style={[styles.optionText, type === shopType && styles.optionTextSelected]}>
+                  style={[styles.option, type === draft.shopType && styles.optionSelected]}>
+                  <Text
+                    style={[
+                      styles.optionText,
+                      type === draft.shopType && styles.optionTextSelected,
+                    ]}>
                     {type}
                   </Text>
-                  {type === shopType ? <Text style={styles.optionCheck}>✓</Text> : null}
+                  {type === draft.shopType ? <Text style={styles.optionCheck}>✓</Text> : null}
                 </Pressable>
               ))}
             </ScrollView>
           </Pressable>
         </Pressable>
+      </Modal>
+
+      <Modal
+        visible={confirmOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => !submitting && setConfirmOpen(false)}>
+        <View style={styles.modalBackdrop}>
+          <Pressable
+            style={styles.modalDismiss}
+            onPress={() => !submitting && setConfirmOpen(false)}
+          />
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.confirmSheet}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Confirm Changes</Text>
+            <Text style={styles.confirmBody}>
+              Enter your current password to save these shop details.
+            </Text>
+            <TextInput
+              value={currentPassword}
+              onChangeText={(value) => {
+                setCurrentPassword(value);
+                if (passwordError) setPasswordError(null);
+              }}
+              placeholder="Current password"
+              placeholderTextColor={colors.textMuted}
+              secureTextEntry
+              autoComplete="password"
+              editable={!submitting}
+              style={[styles.input, styles.passwordInput, passwordError && styles.inputError]}
+            />
+            {passwordError ? <Text style={styles.inlineError}>{passwordError}</Text> : null}
+            {submitError ? <Text style={styles.inlineError}>{submitError}</Text> : null}
+            <Pressable
+              accessibilityRole="button"
+              disabled={submitting}
+              onPress={submitWithPassword}
+              style={({ pressed }) => [
+                styles.continueButton,
+                styles.confirmSave,
+                submitting && styles.continueDisabled,
+                pressed && !submitting && styles.pressed,
+              ]}>
+              {submitting ? (
+                <ActivityIndicator color={colors.white} />
+              ) : (
+                <Text style={styles.continueText}>Save</Text>
+              )}
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              disabled={submitting}
+              onPress={() => setConfirmOpen(false)}
+              style={({ pressed }) => [styles.cancelButton, pressed && styles.pressed]}>
+              <Text style={styles.cancelLabel}>Cancel</Text>
+            </Pressable>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      <Modal visible={savedOpen} transparent animationType="fade">
+        <View style={styles.savedBackdrop}>
+          <View style={styles.savedCard}>
+            <Text style={styles.savedTitle}>Saved</Text>
+            <Text style={styles.savedBody}>Your business profile was updated.</Text>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -338,73 +496,12 @@ const styles = StyleSheet.create({
     lineHeight: typography.lineHeights.headingSm,
     fontWeight: typography.weights.semibold,
   },
-  blobBottom: {
-    position: 'absolute',
-    right: -128,
-    bottom: 100,
-    width: 320,
-    height: 320,
-    opacity: 0.3,
-  },
   scrollContent: {
     paddingBottom: spacing.xxl,
   },
-  progress: {
-    height: 100,
-    paddingHorizontal: spacing.screen,
-    paddingVertical: spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    position: 'relative',
-  },
-  progressLine: {
-    position: 'absolute',
-    top: 40,
-    left: spacing.screen,
-    right: spacing.screen,
-    height: 2,
-    backgroundColor: colors.stepperTrack,
-  },
-  progressStep: {
-    alignItems: 'center',
-    gap: spacing.xs,
-    zIndex: 1,
-  },
-  progressCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 9999,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.stepperTrack,
-  },
-  progressCircleActive: {
-    backgroundColor: colors.primary,
-  },
-  progressNumber: {
-    color: colors.textSecondary,
-    fontFamily: typography.fontFamily,
-    fontSize: typography.sizes.label,
-    lineHeight: typography.lineHeights.label,
-    fontWeight: typography.weights.medium,
-  },
-  progressNumberActive: {
-    color: colors.white,
-  },
-  progressLabel: {
-    color: colors.textSecondary,
-    fontFamily: typography.fontFamily,
-    fontSize: typography.sizes.label,
-    lineHeight: typography.lineHeights.label,
-    fontWeight: typography.weights.medium,
-    letterSpacing: typography.letterSpacing.label,
-  },
-  progressLabelActive: {
-    color: colors.primary,
-  },
   hero: {
     marginHorizontal: spacing.screen,
+    marginTop: spacing.lg,
     marginBottom: spacing.xl,
     padding: spacing.lg,
     borderRadius: 12,
@@ -424,15 +521,6 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-  },
-  routeMessage: {
-    marginHorizontal: spacing.screen,
-    color: colors.primary,
-    fontFamily: typography.fontFamily,
-    fontSize: typography.sizes.body,
-    lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.medium,
-    textAlign: 'center',
   },
   form: {
     gap: spacing.lg,
@@ -460,6 +548,12 @@ const styles = StyleSheet.create({
     color: colors.heading,
     fontFamily: typography.fontFamily,
     fontSize: typography.sizes.input,
+  },
+  passwordInput: {
+    marginTop: spacing.md,
+  },
+  inputError: {
+    borderColor: colors.error,
   },
   select: {
     height: spacing.input,
@@ -591,6 +685,10 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 5,
   },
+  confirmSave: {
+    marginHorizontal: 0,
+    marginTop: spacing.lg,
+  },
   continueDisabled: {
     opacity: 0.5,
   },
@@ -603,15 +701,19 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.body,
     fontWeight: typography.weights.semibold,
   },
-  continueArrow: {
-    color: colors.white,
-    fontSize: 22,
-    lineHeight: 22,
-  },
   modalBackdrop: {
     flex: 1,
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(0, 0, 0, 0.35)',
+  },
+  modalDismiss: {
+    flex: 1,
+  },
+  confirmSheet: {
+    padding: spacing.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    backgroundColor: colors.surface,
   },
   modalCard: {
     maxHeight: '80%',
@@ -633,6 +735,32 @@ const styles = StyleSheet.create({
     color: colors.heading,
     fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
+    fontWeight: typography.weights.semibold,
+  },
+  confirmBody: {
+    color: colors.textSecondary,
+    fontFamily: typography.fontFamily,
+    fontSize: typography.sizes.body,
+    lineHeight: typography.lineHeights.body,
+  },
+  inlineError: {
+    marginTop: spacing.sm,
+    color: colors.error,
+    fontFamily: typography.fontFamily,
+    fontSize: typography.sizes.label,
+    lineHeight: typography.lineHeights.label,
+  },
+  cancelButton: {
+    height: spacing.input,
+    marginTop: spacing.sm,
+    borderRadius: 9999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelLabel: {
+    color: colors.heading,
+    fontFamily: typography.fontFamily,
+    fontSize: typography.sizes.body,
     fontWeight: typography.weights.semibold,
   },
   option: {
@@ -660,5 +788,33 @@ const styles = StyleSheet.create({
     color: colors.success,
     fontSize: 18,
     fontWeight: typography.weights.bold,
+  },
+  savedBackdrop: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    paddingHorizontal: spacing.screen,
+  },
+  savedCard: {
+    width: '100%',
+    padding: spacing.card,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    gap: spacing.sm,
+  },
+  savedTitle: {
+    color: colors.heading,
+    fontFamily: typography.fontFamily,
+    fontSize: typography.sizes.headingSm,
+    fontWeight: typography.weights.semibold,
+    textAlign: 'center',
+  },
+  savedBody: {
+    color: colors.textSecondary,
+    fontFamily: typography.fontFamily,
+    fontSize: typography.sizes.body,
+    lineHeight: typography.lineHeights.body,
+    textAlign: 'center',
   },
 });

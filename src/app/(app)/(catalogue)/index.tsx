@@ -35,6 +35,17 @@ function formatPrice(price: number) {
   }).format(price);
 }
 
+function allVariantsOutOfStock(product: ShopProduct) {
+  return (
+    product.variants.length > 0 &&
+    product.variants.every((variant) => (variant.stock ?? 0) === 0)
+  );
+}
+
+function someVariantOutOfStock(product: ShopProduct) {
+  return product.variants.some((variant) => (variant.stock ?? 0) === 0);
+}
+
 export default function CatalogueScreen() {
   const [products, setProducts] = useState<ShopProduct[]>([]);
   const [categories, setCategories] = useState<ShopCategory[]>([]);
@@ -198,11 +209,36 @@ export default function CatalogueScreen() {
               )}
               <View style={styles.cardMeta}>
                 <View style={styles.cardTopRow}>
-                  <View style={[styles.stockPill, !item.isActive && styles.stockPillOut]}>
-                    <Text style={[styles.stockText, !item.isActive && styles.stockTextOut]}>
-                      {item.isActive ? 'In Stock' : 'Out of Stock'}
-                    </Text>
-                  </View>
+                  {item.hasVariants ? (
+                    allVariantsOutOfStock(item) ? (
+                      <View style={[styles.stockPill, styles.stockPillOut]}>
+                        <Text style={[styles.stockText, styles.stockTextOut]}>Out of Stock</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.badgeRow}>
+                        <View style={styles.optionsPill}>
+                          <Text style={styles.optionsText}>
+                            {item.variants.length}{' '}
+                            {item.variants.length === 1 ? 'option' : 'options'}
+                          </Text>
+                        </View>
+                        {someVariantOutOfStock(item) ? (
+                          <MaterialCommunityIcons
+                            name="alert-circle-outline"
+                            size={16}
+                            color={colors.error}
+                            accessibilityLabel="A variant is out of stock"
+                          />
+                        ) : null}
+                      </View>
+                    )
+                  ) : (
+                    <View style={[styles.stockPill, !item.isActive && styles.stockPillOut]}>
+                      <Text style={[styles.stockText, !item.isActive && styles.stockTextOut]}>
+                        {item.isActive ? 'In Stock' : 'Out of Stock'}
+                      </Text>
+                    </View>
+                  )}
                   <Text style={styles.price}>
                     {formatPrice(item.price)} / {item.unitType}
                   </Text>
@@ -416,6 +452,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.xs,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 1,
+    gap: spacing.xs,
+  },
+  optionsPill: {
+    backgroundColor: colors.tintSoft,
+    borderRadius: 9999,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+  },
+  optionsText: {
+    fontFamily: typography.fontFamily,
+    fontSize: typography.sizes.label,
+    lineHeight: typography.lineHeights.label,
+    fontWeight: typography.weights.medium,
+    letterSpacing: typography.letterSpacing.label,
+    color: colors.primary,
   },
   stockPill: {
     backgroundColor: colors.overlayTrust,

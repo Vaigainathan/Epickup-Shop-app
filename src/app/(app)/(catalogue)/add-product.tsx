@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
+import { fetchShopType } from '@/lib/auth-api';
 import {
   CatalogueApiError,
   createShopProduct,
@@ -35,6 +36,7 @@ import {
   pickProductPhotoFromGallery,
   PickedMedia,
 } from '@/lib/pick-media';
+import { chipsForShopType } from '@/lib/variant-option-suggestions';
 
 type VariantDraft = {
   key: string;
@@ -129,6 +131,7 @@ export default function AddProductScreen() {
   }, []);
 
   const [categories, setCategories] = useState<ShopCategory[]>([]);
+  const [shopType, setShopType] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -153,6 +156,7 @@ export default function AddProductScreen() {
   const photoUri = localPhoto?.uri ?? remotePhotoUrl;
   const parsedPrice = parseMoney(price);
   const parsedStock = parseStock(stock);
+  const optionChips = chipsForShopType(shopType);
 
   const loadCategories = useCallback(async () => {
     const nextCategories = await fetchShopCategories();
@@ -164,7 +168,11 @@ export default function AddProductScreen() {
     setLoading(true);
     setLoadError(null);
     try {
-      const nextCategories = await loadCategories();
+      const [nextCategories, nextShopType] = await Promise.all([
+        loadCategories(),
+        fetchShopType(),
+      ]);
+      setShopType(nextShopType);
       if (productId) {
         const product = await fetchShopProduct(productId);
         setName(product.name);
@@ -282,12 +290,10 @@ export default function AddProductScreen() {
     };
 
     try {
-      const saved = productId
-        ? await updateShopProduct(productId, input)
-        : await createShopProduct(input);
-      if (__DEV__) {
-        const confirmed = await fetchShopProduct(saved.id);
-        console.log('[product]', { id: confirmed.id, photoUrl: confirmed.photoUrl });
+      if (productId) {
+        await updateShopProduct(productId, input);
+      } else {
+        await createShopProduct(input);
       }
       router.back();
     } catch (error) {
@@ -477,14 +483,19 @@ export default function AddProductScreen() {
                     style={styles.input}
                   />
                 </View>
-              ) : null}
+              ) : (
+                <Text style={styles.inlineNote}>Stock is now tracked per variant below.</Text>
+              )}
             </View>
 
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <View style={styles.flex}>
                   <Text style={styles.cardTitle}>Product Variants</Text>
-                  <Text style={styles.cardSubtitle}>Offer this product in multiple options</Text>
+                  <Text style={styles.cardSubtitle}>
+                    Add different versions of this product — like sizes, weights, or colors — each
+                    with its own stock and price.
+                  </Text>
                 </View>
                 <Switch
                   value={hasVariants}
@@ -501,29 +512,64 @@ export default function AddProductScreen() {
                 />
               </View>
               {hasVariants ? (
+                <Text style={styles.inlineNote}>
+                  Use this for different versions of the same item — like sizes, weights, or
+                  colors. If it's a genuinely different product, add it separately instead.
+                </Text>
+              ) : null}
+              {hasVariants ? (
                 <View style={styles.variantList}>
                   {variants.map((variant) => (
                     <View key={variant.key} style={styles.variantCard}>
+                      <View style={styles.chipBlock}>
+                        <Text style={styles.quickOptionsLabel}>
+                          Quick options (or type your own below)
+                        </Text>
+                        <View style={styles.chipRow}>
+                          {optionChips.map((chip) => {
+                            const selected = variant.attributeLabel === chip;
+                            return (
+                              <Pressable
+                                key={chip}
+                                accessibilityRole="button"
+                                accessibilityLabel={`Use ${chip}`}
+                                disabled={saving}
+                                onPress={() =>
+                                  updateVariant(variant.key, { attributeLabel: chip })
+                                }
+                                style={[styles.chip, selected && styles.chipSelected]}>
+                                <Text
+                                  style={[
+                                    styles.chipLabel,
+                                    selected && styles.chipLabelSelected,
+                                  ]}>
+                                  {chip}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+                      </View>
                       <View style={styles.row}>
                         <View style={[styles.field, styles.flex]}>
-                          <Text style={styles.label}>Attribute</Text>
+                          <Text style={styles.label}>Option Name</Text>
+                          <Text style={styles.labelHint}>e.g. Size, Weight, Color</Text>
                           <TextInput
                             value={variant.attributeLabel}
                             onChangeText={(value) =>
                               updateVariant(variant.key, { attributeLabel: value })
                             }
-                            placeholder="Attribute"
                             placeholderTextColor={colors.textPlaceholder}
                             editable={!saving}
                             style={styles.input}
                           />
                         </View>
                         <View style={[styles.field, styles.flex]}>
-                          <Text style={styles.label}>Value</Text>
+                          <Text style={styles.label}>Option</Text>
+                          <Text style={styles.labelHint}>e.g. Small, 1kg, Red</Text>
                           <TextInput
                             value={variant.value}
                             onChangeText={(value) => updateVariant(variant.key, { value })}
-                            placeholder="Value"
                             placeholderTextColor={colors.textPlaceholder}
                             editable={!saving}
                             style={styles.input}
@@ -886,6 +932,14 @@ const styles = StyleSheet.create({
     letterSpacing: typography.letterSpacing.label,
     color: colors.textSecondary,
   },
+  labelHint: {
+    paddingLeft: spacing.xs,
+    fontFamily: typography.fontFamily,
+    fontSize: typography.sizes.label,
+    lineHeight: typography.lineHeights.label,
+    fontWeight: typography.weights.regular,
+    color: colors.textMuted,
+  },
   input: {
     minHeight: spacing.input,
     borderWidth: 1,
@@ -1003,6 +1057,13 @@ const styles = StyleSheet.create({
   stockField: {
     gap: spacing.xs,
   },
+  inlineNote: {
+    fontFamily: typography.fontFamily,
+    fontSize: typography.sizes.body,
+    lineHeight: typography.lineHeights.body,
+    fontWeight: typography.weights.regular,
+    color: colors.textSecondary,
+  },
   variantList: {
     gap: spacing.md,
   },
@@ -1011,6 +1072,41 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: spacing.md,
     gap: spacing.md,
+  },
+  chipBlock: {
+    gap: spacing.sm,
+  },
+  quickOptionsLabel: {
+    fontFamily: typography.fontFamily,
+    fontSize: typography.sizes.label,
+    lineHeight: typography.lineHeights.label,
+    fontWeight: typography.weights.medium,
+    color: colors.textMuted,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  chip: {
+    backgroundColor: colors.tintSoft,
+    borderRadius: 9999,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  chipSelected: {
+    backgroundColor: colors.primary,
+  },
+  chipLabel: {
+    fontFamily: typography.fontFamily,
+    fontSize: typography.sizes.body,
+    lineHeight: typography.lineHeights.body,
+    fontWeight: typography.weights.semibold,
+    letterSpacing: typography.letterSpacing.button,
+    color: colors.textSecondary,
+  },
+  chipLabelSelected: {
+    color: colors.white,
   },
   removeVariant: {
     width: 48,

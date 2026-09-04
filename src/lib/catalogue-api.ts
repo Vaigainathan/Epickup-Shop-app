@@ -416,3 +416,29 @@ export async function updateShopProduct(id: string, input: ShopProductInput): Pr
   );
   return parseProductPayload(body);
 }
+
+export async function deleteShopProduct(id: string): Promise<void> {
+  await requestJson(
+    `/api/shop/products/${encodeURIComponent(id)}`,
+    { method: 'DELETE' },
+    'Could not delete this product.',
+  );
+}
+
+export type ShopProductStockInput =
+  | { stock: number }
+  | { variants: { id: string; stock: number }[] };
+
+export async function updateShopProductStock(
+  id: string,
+  input: ShopProductStockInput,
+): Promise<void> {
+  await requestJson(
+    `/api/shop/products/${encodeURIComponent(id)}/stock`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    },
+    'Could not update stock.',
+  );
+}

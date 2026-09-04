@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -9,18 +9,23 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
-import {
-  OnboardingDocumentField,
-  fetchShopType,
-  uploadShopOnboardingDocument,
-} from '@/lib/auth-api';
+import { fetchShopType } from '@/lib/auth-api';
 import { pickImageFromCamera, pickImageFromGallery, PickedMedia } from '@/lib/pick-media';
-import { getSessionToken } from '@/lib/session';
+import {
+  fetchShopDocumentStatuses,
+  isFssaiExpiryDate,
+  reuploadShopDocument,
+  ShopDocumentReviewStatus,
+  ShopDocumentsApiError,
+  ShopDocumentType,
+} from '@/lib/shop-documents-api';
 import { isFssaiRequiredShopType } from '@/lib/shop-types';
 
 const logo = require('@/assets/images/login/logo.png');
@@ -29,19 +34,17 @@ const MAX_BYTES = 5 * 1024 * 1024;
 const FSSAI_PLATE = '#FFDBD0';
 const FSSAI_OVERLINE = '#7B2E12';
 
-type CardStatus = 'idle' | 'uploading' | 'success' | 'error';
-
-type CardState = {
-  status: CardStatus;
+type CardUpload = {
+  status: 'idle' | 'uploading' | 'error';
   uri: string | null;
   message: string | null;
 };
 
-const EMPTY_CARD: CardState = { status: 'idle', uri: null, message: null };
+const EMPTY_UPLOAD: CardUpload = { status: 'idle', uri: null, message: null };
 
-type SourceSheet = { field: OnboardingDocumentField } | null;
+type SourceSheet = { field: ShopDocumentType } | null;
 
-function fileNameFor(field: OnboardingDocumentField, media: PickedMedia) {
+function fileNameFor(field: ShopDocumentType, media: PickedMedia) {
   const ext = media.fileName.includes('.')
     ? media.fileName.split('.').pop()
     : media.mimeType.includes('png')
@@ -50,46 +53,85 @@ function fileNameFor(field: OnboardingDocumentField, media: PickedMedia) {
   return `${field}.${ext}`;
 }
 
-export default function SignUpDocumentsScreen() {
-  const { message } = useLocalSearchParams<{ message?: string }>();
-  const routeMessage =
-    typeof message === 'string' ? message : Array.isArray(message) ? message[0] : null;
+function statusLabel(status: ShopDocumentReviewStatus): string {
+  if (status === 'verified') return 'Verified';
+  if (status === 'action_required') return 'Action Required';
+  if (status === 'under_review') return 'Under Review';
+  return '—';
+}
 
-  const [gst, setGst] = useState<CardState>(EMPTY_CARD);
-  const [fssai, setFssai] = useState<CardState>(EMPTY_CARD);
-  const [sheet, setSheet] = useState<SourceSheet>(null);
+function statusColor(status: ShopDocumentReviewStatus): string {
+  if (status === 'verified') return colors.success;
+  if (status === 'action_required') return colors.error;
+  if (status === 'under_review') return colors.textSecondary;
+  return colors.textMuted;
+}
+
+function statusChipBackground(status: ShopDocumentReviewStatus): string {
+  if (status === 'verified') return colors.accentSoft;
+  if (status === 'action_required') return 'rgba(186, 26, 26, 0.12)';
+  return colors.tintSoft;
+}
+
+export default function ComplianceDocumentsScreen() {
   const [shopType, setShopType] = useState<string | null>(null);
-  const [shopTypeReady, setShopTypeReady] = useState(false);
+  const [gstStatus, setGstStatus] = useState<ShopDocumentReviewStatus>(null);
+  const [fssaiStatus, setFssaiStatus] = useState<ShopDocumentReviewStatus>(null);
+  const [fssaiExpiry, setFssaiExpiry] = useState('');
+  const [gstUpload, setGstUpload] = useState<CardUpload>(EMPTY_UPLOAD);
+  const [fssaiUpload, setFssaiUpload] = useState<CardUpload>(EMPTY_UPLOAD);
+  const [sheet, setSheet] = useState<SourceSheet>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const fssaiRequired = !shopTypeReady || shopType === null || isFssaiRequiredShopType(shopType);
-  const canContinue =
-    shopTypeReady && gst.status === 'success' && (!fssaiRequired || fssai.status === 'success');
+  const fssaiRequired = shopType === null || isFssaiRequiredShopType(shopType);
+  const expiryTrimmed = fssaiExpiry.trim();
+  const expiryInvalid = expiryTrimmed.length > 0 && !isFssaiExpiryDate(expiryTrimmed);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetchShopType()
-      .then((next) => {
-        if (!cancelled) setShopType(next);
-      })
-      .finally(() => {
-        if (!cancelled) setShopTypeReady(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const sheetTitle = useMemo(() => {
+    if (!sheet) return 'Upload';
+    return sheet.field === 'gst' ? 'Re-upload GST' : 'Re-upload FSSAI License';
+  }, [sheet]);
 
-  function setCard(field: OnboardingDocumentField, next: CardState | ((current: CardState) => CardState)) {
-    if (field === 'gst') {
-      setGst(next);
-    } else {
-      setFssai(next);
+  async function load() {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const [nextType, statuses] = await Promise.all([
+        fetchShopType(),
+        fetchShopDocumentStatuses(),
+      ]);
+      setShopType(nextType);
+      setGstStatus(statuses.gstStatus);
+      setFssaiStatus(statuses.fssaiStatus);
+      setFssaiExpiry(statuses.fssaiExpiryDate ?? '');
+    } catch (error) {
+      setLoadError(
+        error instanceof ShopDocumentsApiError
+          ? error.message
+          : 'Could not load your documents.',
+      );
+    } finally {
+      setLoading(false);
     }
   }
 
-  function openSheet(field: OnboardingDocumentField) {
+  useEffect(() => {
+    load();
+  }, []);
+
+  function setUpload(field: ShopDocumentType, next: CardUpload | ((current: CardUpload) => CardUpload)) {
+    if (field === 'gst') {
+      setGstUpload(next);
+    } else {
+      setFssaiUpload(next);
+    }
+  }
+
+  function openSheet(field: ShopDocumentType) {
     if (field === 'fssai' && !fssaiRequired) return;
-    const current = field === 'gst' ? gst : fssai;
+    if (field === 'fssai' && expiryInvalid) return;
+    const current = field === 'gst' ? gstUpload : fssaiUpload;
     if (current.status === 'uploading') return;
     setSheet({ field });
   }
@@ -97,7 +139,7 @@ export default function SignUpDocumentsScreen() {
   async function handlePick(source: 'camera' | 'gallery') {
     const field = sheet?.field;
     if (!field) return;
-    if (field === 'fssai' && !fssaiRequired) return;
+    if (field === 'fssai' && (!fssaiRequired || expiryInvalid)) return;
     setSheet(null);
 
     const result =
@@ -107,7 +149,7 @@ export default function SignUpDocumentsScreen() {
 
     if (result.status === 'cancelled') return;
     if (result.status === 'denied') {
-      setCard(field, (current) => ({
+      setUpload(field, (current) => ({
         ...current,
         status: 'error',
         message: result.message,
@@ -116,7 +158,7 @@ export default function SignUpDocumentsScreen() {
     }
 
     if (result.media.fileSize !== null && result.media.fileSize > MAX_BYTES) {
-      setCard(field, {
+      setUpload(field, {
         status: 'error',
         uri: null,
         message: 'This file is larger than 5MB. Choose a smaller photo.',
@@ -127,37 +169,31 @@ export default function SignUpDocumentsScreen() {
     await uploadCard(field, result.media);
   }
 
-  async function uploadCard(field: OnboardingDocumentField, media: PickedMedia) {
-    setCard(field, {
+  async function uploadCard(field: ShopDocumentType, media: PickedMedia) {
+    setUpload(field, {
       status: 'uploading',
       uri: media.uri,
       message: null,
     });
 
     try {
-      const token = await getSessionToken();
-      if (!token) throw new Error('Your session expired. Please verify your phone again.');
-
-      await uploadShopOnboardingDocument(
+      await reuploadShopDocument(
         field,
         {
           uri: media.uri,
           mimeType: media.mimeType,
           fileName: fileNameFor(field, media),
         },
-        token,
+        field === 'fssai' && expiryTrimmed.length > 0 ? expiryTrimmed : null,
       );
-
-      setCard(field, {
-        status: 'success',
-        uri: media.uri,
-        message: null,
-      });
-    } catch (error) {
-      if (__DEV__) {
-        console.error('[documents upload] failed', error);
+      setUpload(field, { status: 'idle', uri: media.uri, message: null });
+      if (field === 'gst') {
+        setGstStatus('under_review');
+      } else {
+        setFssaiStatus('under_review');
       }
-      setCard(field, {
+    } catch {
+      setUpload(field, {
         status: 'error',
         uri: media.uri,
         message: 'Upload failed, please try again',
@@ -165,15 +201,21 @@ export default function SignUpDocumentsScreen() {
     }
   }
 
-  function continueToBank() {
-    if (!canContinue) return;
-    router.replace('/(auth)/sign-up/bank-details');
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <ScreenLoading />
+      </SafeAreaView>
+    );
   }
 
-  const sheetTitle = useMemo(() => {
-    if (!sheet) return 'Upload';
-    return sheet.field === 'gst' ? 'Upload GST' : 'Upload FSSAI License';
-  }, [sheet]);
+  if (loadError) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <ScreenError message={loadError} onRetry={load} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -187,7 +229,7 @@ export default function SignUpDocumentsScreen() {
         </Pressable>
         <View style={styles.headerBrand}>
           <Image source={logo} style={styles.headerLogo} contentFit="contain" />
-          <Text style={styles.headerTitle}>Document Upload</Text>
+          <Text style={styles.headerTitle}>Compliance Documents</Text>
         </View>
       </View>
 
@@ -195,29 +237,26 @@ export default function SignUpDocumentsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
-          <Text style={styles.heroTitle}>Verify Your Business</Text>
+          <Text style={styles.heroTitle}>GST and FSSAI</Text>
           <Text style={styles.heroBody}>
-            Upload your official documents to complete your shop&apos;s registration and start
-            receiving orders.
+            Re-upload a document if a license changed. New files go under review.
           </Text>
         </View>
 
-        {routeMessage ? <Text style={styles.routeMessage}>{routeMessage}</Text> : null}
-
-        <DocumentCard
+        <ComplianceCard
           title="GST Document"
           overline="MANDATORY FOR ALL SHOPS"
           overlineColor={colors.textSecondary}
           plateColor={colors.hero}
           plateIcon="file-document-outline"
           plateIconColor={colors.white}
-          emptyLabel="Tap to Upload GST"
-          emptyHint="JPG or PNG (Max 5MB)"
-          state={gst}
-          onPress={() => openSheet('gst')}
+          reviewStatus={gstStatus}
+          upload={gstUpload}
+          reuploadLabel="Re-upload GST"
+          onReupload={() => openSheet('gst')}
         />
 
-        <DocumentCard
+        <ComplianceCard
           title="FSSAI License"
           overline={
             fssaiRequired ? 'REQUIRED FOR FOOD-RELATED SHOPS' : 'NOT APPLICABLE TO YOUR BUSINESS TYPE'
@@ -226,11 +265,21 @@ export default function SignUpDocumentsScreen() {
           plateColor={fssaiRequired ? FSSAI_PLATE : colors.tintSoft}
           plateIcon="silverware-fork-knife"
           plateIconColor={fssaiRequired ? FSSAI_OVERLINE : colors.textMuted}
-          emptyLabel="Tap to Upload License"
-          emptyHint="JPG or PNG (Max 5MB)"
-          state={fssai}
+          reviewStatus={fssaiRequired ? fssaiStatus : null}
+          upload={fssaiUpload}
+          reuploadLabel="Re-upload License"
           notApplicable={!fssaiRequired}
-          onPress={() => openSheet('fssai')}
+          onReupload={() => openSheet('fssai')}
+          expiry={
+            fssaiRequired
+              ? {
+                  value: fssaiExpiry,
+                  invalid: expiryInvalid,
+                  onChange: (value) => setFssaiExpiry(value),
+                  disabled: fssaiUpload.status === 'uploading',
+                }
+              : null
+          }
         />
 
         <View style={styles.trust}>
@@ -241,21 +290,6 @@ export default function SignUpDocumentsScreen() {
           </Text>
         </View>
       </ScrollView>
-
-      <View style={styles.footer}>
-        <Pressable
-          accessibilityRole="button"
-          disabled={!canContinue}
-          onPress={continueToBank}
-          style={({ pressed }) => [
-            styles.continueButton,
-            !canContinue && styles.continueDisabled,
-            pressed && canContinue && styles.pressed,
-          ]}>
-          <Text style={styles.continueText}>Continue</Text>
-          <Text style={styles.continueArrow}>→</Text>
-        </Pressable>
-      </View>
 
       <Modal
         visible={sheet !== null}
@@ -285,34 +319,42 @@ export default function SignUpDocumentsScreen() {
   );
 }
 
-type DocumentCardProps = {
+type ComplianceCardProps = {
   title: string;
   overline: string;
   overlineColor: string;
   plateColor: string;
   plateIcon: keyof typeof MaterialCommunityIcons.glyphMap;
   plateIconColor: string;
-  emptyLabel: string;
-  emptyHint: string;
-  state: CardState;
+  reviewStatus: ShopDocumentReviewStatus;
+  upload: CardUpload;
+  reuploadLabel: string;
   notApplicable?: boolean;
-  onPress: () => void;
+  onReupload: () => void;
+  expiry?: {
+    value: string;
+    invalid: boolean;
+    onChange: (value: string) => void;
+    disabled: boolean;
+  } | null;
 };
 
-function DocumentCard({
+function ComplianceCard({
   title,
   overline,
   overlineColor,
   plateColor,
   plateIcon,
   plateIconColor,
-  emptyLabel,
-  emptyHint,
-  state,
+  reviewStatus,
+  upload,
+  reuploadLabel,
   notApplicable = false,
-  onPress,
-}: DocumentCardProps) {
-  const busy = state.status === 'uploading';
+  onReupload,
+  expiry,
+}: ComplianceCardProps) {
+  const busy = upload.status === 'uploading';
+  const reuploadBlocked = Boolean(expiry?.invalid);
 
   return (
     <View style={[styles.card, notApplicable && styles.cardMuted]}>
@@ -324,50 +366,74 @@ function DocumentCard({
           <Text style={[styles.cardTitle, notApplicable && styles.mutedTitle]}>{title}</Text>
           <Text style={[styles.cardOverline, { color: overlineColor }]}>{overline}</Text>
         </View>
+        {!notApplicable ? (
+          <View style={[styles.statusChip, { backgroundColor: statusChipBackground(reviewStatus) }]}>
+            <Text style={[styles.statusChipText, { color: statusColor(reviewStatus) }]}>
+              {statusLabel(reviewStatus)}
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       {notApplicable ? (
         <View style={[styles.well, styles.wellMuted]}>
-          <View style={styles.wellEmpty}>
-            <Text style={styles.notApplicableLabel}>Not applicable to your business type</Text>
-          </View>
+          <Text style={styles.notApplicableLabel}>Not applicable to your business type</Text>
         </View>
       ) : (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={emptyLabel}
-          disabled={busy}
-          onPress={onPress}
-          style={({ pressed }) => [styles.well, pressed && !busy && styles.pressed]}>
-          {state.status === 'uploading' ? (
-            <ActivityIndicator color={colors.primary} />
-          ) : state.uri && (state.status === 'success' || state.status === 'error') ? (
-            <>
-              <Image source={{ uri: state.uri }} style={styles.thumbnail} contentFit="cover" />
-              {state.status === 'success' ? (
-                <View style={styles.checkBadge}>
-                  <MaterialCommunityIcons name="check" size={14} color={colors.white} />
-                </View>
-              ) : null}
-            </>
-          ) : (
-            <View style={styles.wellEmpty}>
-              <MaterialCommunityIcons name="cloud-upload-outline" size={24} color={colors.primary} />
-              <Text style={styles.wellLabel}>{emptyLabel}</Text>
-              <Text style={styles.wellHint}>{emptyHint}</Text>
+        <>
+          {expiry ? (
+            <View style={styles.expiryField}>
+              <Text style={styles.expiryLabel}>FSSAI expiry date (optional)</Text>
+              <TextInput
+                value={expiry.value}
+                onChangeText={expiry.onChange}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={colors.textMuted}
+                editable={!expiry.disabled}
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={[styles.expiryInput, expiry.invalid && styles.expiryInputError]}
+              />
+              {expiry.invalid ? <Text style={styles.expiryHint}>Use YYYY-MM-DD</Text> : null}
             </View>
-          )}
-        </Pressable>
-      )}
+          ) : null}
 
-      {!notApplicable && state.status === 'error' && state.message ? (
-        <View style={styles.cardError}>
-          <Text style={styles.cardErrorText}>{state.message}</Text>
-          <Pressable accessibilityRole="button" disabled={busy} onPress={onPress}>
-            <Text style={styles.retryLabel}>Retry</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={reuploadLabel}
+            disabled={busy || reuploadBlocked}
+            onPress={onReupload}
+            style={({ pressed }) => [
+              styles.well,
+              (busy || reuploadBlocked) && styles.wellDisabled,
+              pressed && !busy && !reuploadBlocked && styles.pressed,
+            ]}>
+            {busy ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : upload.uri ? (
+              <Image source={{ uri: upload.uri }} style={styles.thumbnail} contentFit="cover" />
+            ) : (
+              <View style={styles.wellEmpty}>
+                <MaterialCommunityIcons name="cloud-upload-outline" size={24} color={colors.primary} />
+                <Text style={styles.wellLabel}>{reuploadLabel}</Text>
+                <Text style={styles.wellHint}>JPG or PNG (Max 5MB)</Text>
+              </View>
+            )}
           </Pressable>
-        </View>
-      ) : null}
+
+          {upload.status === 'error' && upload.message ? (
+            <View style={styles.cardError}>
+              <Text style={styles.cardErrorText}>{upload.message}</Text>
+              <Pressable
+                accessibilityRole="button"
+                disabled={busy || reuploadBlocked}
+                onPress={onReupload}>
+                <Text style={styles.retryLabel}>Retry</Text>
+              </Pressable>
+            </View>
+          ) : null}
+        </>
+      )}
     </View>
   );
 }
@@ -402,6 +468,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+    flex: 1,
   },
   headerLogo: {
     width: 24,
@@ -416,7 +483,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: spacing.screen,
-    paddingBottom: spacing.lg,
+    paddingBottom: spacing.xxl,
     gap: spacing.lg,
   },
   hero: {
@@ -435,13 +502,6 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-  },
-  routeMessage: {
-    color: colors.primary,
-    fontFamily: typography.fontFamily,
-    fontSize: typography.sizes.body,
-    lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.medium,
   },
   card: {
     backgroundColor: colors.surface,
@@ -484,12 +544,24 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   cardOverline: {
-    color: colors.textSecondary,
     fontFamily: typography.fontFamily,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
     fontWeight: typography.weights.medium,
     letterSpacing: typography.letterSpacing.label,
+  },
+  statusChip: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: 4,
+    maxWidth: 120,
+  },
+  statusChipText: {
+    fontFamily: typography.fontFamily,
+    fontSize: typography.sizes.caption,
+    lineHeight: typography.lineHeights.caption,
+    fontWeight: typography.weights.medium,
+    textTransform: 'uppercase',
   },
   well: {
     minHeight: 148,
@@ -504,7 +576,11 @@ const styles = StyleSheet.create({
   },
   wellMuted: {
     backgroundColor: colors.tintSoft,
-    borderColor: colors.border,
+    minHeight: 80,
+    paddingHorizontal: spacing.md,
+  },
+  wellDisabled: {
+    opacity: 0.5,
   },
   wellEmpty: {
     alignItems: 'center',
@@ -543,16 +619,37 @@ const styles = StyleSheet.create({
     minHeight: 148,
     height: 148,
   },
-  checkBadge: {
-    position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    width: 28,
-    height: 28,
-    borderRadius: 9999,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
+  expiryField: {
+    gap: spacing.xs,
+  },
+  expiryLabel: {
+    marginLeft: spacing.xs,
+    color: colors.textSecondary,
+    fontFamily: typography.fontFamily,
+    fontSize: typography.sizes.label,
+    lineHeight: typography.lineHeights.label,
+    fontWeight: typography.weights.medium,
+    letterSpacing: typography.letterSpacing.label,
+  },
+  expiryInput: {
+    height: spacing.input,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    backgroundColor: colors.white,
+    color: colors.heading,
+    fontFamily: typography.fontFamily,
+    fontSize: typography.sizes.input,
+  },
+  expiryInputError: {
+    borderColor: colors.error,
+  },
+  expiryHint: {
+    color: colors.error,
+    fontFamily: typography.fontFamily,
+    fontSize: typography.sizes.label,
+    lineHeight: typography.lineHeights.label,
   },
   cardError: {
     flexDirection: 'row',
@@ -571,7 +668,6 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
-    lineHeight: typography.lineHeights.body,
     fontWeight: typography.weights.semibold,
   },
   trust: {
@@ -590,43 +686,6 @@ const styles = StyleSheet.create({
     lineHeight: typography.lineHeights.label,
     fontWeight: typography.weights.medium,
     letterSpacing: typography.letterSpacing.label,
-  },
-  footer: {
-    paddingHorizontal: spacing.screen,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(198, 197, 212, 0.3)',
-    backgroundColor: colors.overlayHeader,
-  },
-  continueButton: {
-    height: 52,
-    borderRadius: 9999,
-    backgroundColor: colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  continueDisabled: {
-    opacity: 0.45,
-  },
-  continueText: {
-    color: colors.white,
-    fontFamily: typography.fontFamily,
-    fontSize: typography.sizes.body,
-    lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
-    letterSpacing: typography.letterSpacing.button,
-  },
-  continueArrow: {
-    color: colors.white,
-    fontSize: 16,
   },
   pressed: {
     opacity: 0.9,

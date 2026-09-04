@@ -1,4 +1,5 @@
 import { apiUrl } from '@/lib/api';
+import { fetchShopProfile } from '@/lib/dashboard-api';
 import { appendLocalFile } from '@/lib/pick-media';
 
 type JsonRecord = Record<string, unknown>;
@@ -366,4 +367,13 @@ export async function submitShopOnboarding(bearerToken: string) {
   }
 
   return body ?? {};
+}
+
+export async function fetchShopType(): Promise<string | null> {
+  try {
+    const profile = await fetchShopProfile();
+    return profile.shopType;
+  } catch {
+    return null;
+  }
 }

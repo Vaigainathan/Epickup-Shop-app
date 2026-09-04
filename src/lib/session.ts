@@ -127,3 +127,16 @@ export async function clearSessionToken(): Promise<void> {
   await remove(TOKEN_KEY);
   await remove(REFRESH_TOKEN_KEY);
 }
+
+export async function sessionTokensAreCleared(): Promise<boolean> {
+  const [access, refresh] = await Promise.all([getSessionToken(), getRefreshToken()]);
+  return access === null && refresh === null;
+}
+
+/** Wipes access + refresh, then re-reads storage to confirm both are gone. */
+export async function wipeShopSession(): Promise<boolean> {
+  await clearSessionToken();
+  if (await sessionTokensAreCleared()) return true;
+  await clearSessionToken();
+  return sessionTokensAreCleared();
+}
