@@ -17,9 +17,12 @@ import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
 import {
   DashboardApiError,
+  fetchPaymentHistory,
   fetchShopProfile,
+  PaymentHistoryItem,
   ShopProfile,
 } from '@/lib/dashboard-api';
+import { formatDisplayId, formatInr } from '@/lib/orders-api';
 import { wipeShopSession } from '@/lib/session';
 
 const logo = require('@/assets/images/login/logo.png');
@@ -43,6 +46,7 @@ function maskUpi(upi: string): string {
 
 export default function SettingsScreen() {
   const [profile, setProfile] = useState<ShopProfile | null>(null);
+  const [payments, setPayments] = useState<PaymentHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [logoutOpen, setLogoutOpen] = useState(false);
@@ -53,7 +57,12 @@ export default function SettingsScreen() {
     setLoading(true);
     setError(null);
     try {
-      setProfile(await fetchShopProfile());
+      const [nextProfile, nextPayments] = await Promise.all([
+        fetchShopProfile(),
+        fetchPaymentHistory().catch(() => [] as PaymentHistoryItem[]),
+      ]);
+      setProfile(nextProfile);
+      setPayments(nextPayments.slice(0, 2));
     } catch (loadError) {
       setError(
         loadError instanceof DashboardApiError
@@ -132,7 +141,9 @@ export default function SettingsScreen() {
       <View style={styles.header}>
         <View style={styles.headerBrand}>
           <Image source={logo} style={styles.logo} contentFit="contain" />
-          <Text style={styles.headerTitle}>ePickup Shop</Text>
+          <Text numberOfLines={1} style={styles.headerTitle}>
+            ePickup Shop
+          </Text>
         </View>
         <View style={styles.headerActions}>
           <View style={[styles.openPill, !profile.isOpen && styles.openPillClosed]}>
@@ -164,7 +175,33 @@ export default function SettingsScreen() {
               <Text style={styles.viewAll}>View All</Text>
             </Pressable>
           </View>
-          <Text style={styles.emptyHint}>No payments yet</Text>
+          {payments.length === 0 ? (
+            <Text style={styles.emptyHint}>No payments yet</Text>
+          ) : (
+            payments.map((item) => (
+              <View key={item.orderId} style={styles.paymentRow}>
+                <Text numberOfLines={1} style={styles.paymentRef}>
+                  {formatDisplayId(item.displayId)}
+                </Text>
+                <Text numberOfLines={1} style={styles.paymentAmount}>
+                  {formatInr(item.amount)}
+                </Text>
+                <View
+                  style={[
+                    styles.paymentStatusPill,
+                    item.paymentStatus === 'refunded' && styles.paymentStatusPillRefunded,
+                  ]}>
+                  <Text
+                    style={[
+                      styles.paymentStatus,
+                      item.paymentStatus === 'refunded' && styles.paymentStatusRefunded,
+                    ]}>
+                    {item.paymentStatus === 'refunded' ? 'Refunded' : 'Confirmed'}
+                  </Text>
+                </View>
+              </View>
+            ))
+          )}
         </View>
 
         <Pressable
@@ -289,6 +326,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.overlayHeader,
   },
   headerBrand: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
@@ -296,8 +335,10 @@ const styles = StyleSheet.create({
   logo: {
     width: 32,
     height: 32,
+    flexShrink: 0,
   },
   headerTitle: {
+    flexShrink: 1,
     fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
@@ -305,6 +346,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   headerActions: {
+    flexShrink: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
@@ -315,8 +357,10 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     backgroundColor: colors.overlayTrust,
     borderRadius: 9999,
-    paddingHorizontal: 12,
     paddingVertical: spacing.xs,
+    paddingLeft: 12,
+    paddingRight: 14,
+    flexShrink: 0,
   },
   openPillClosed: {
     backgroundColor: colors.overlayPrimary,
@@ -335,8 +379,10 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
     fontWeight: typography.weights.medium,
-    letterSpacing: typography.letterSpacing.label,
+    letterSpacing: 0,
     color: colors.success,
+    includeFontPadding: false,
+    paddingRight: 2,
   },
   openPillTextClosed: {
     color: colors.error,
@@ -398,6 +444,53 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.textSecondary,
+  },
+  paymentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  paymentRef: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: typography.fontFamily,
+    fontSize: typography.sizes.body,
+    lineHeight: typography.lineHeights.body,
+    color: colors.heading,
+  },
+  paymentAmount: {
+    flexShrink: 0,
+    fontFamily: typography.fontFamily,
+    fontSize: typography.sizes.body,
+    lineHeight: typography.lineHeights.body,
+    fontWeight: typography.weights.semibold,
+    color: colors.heading,
+  },
+  paymentStatusPill: {
+    flexShrink: 0,
+    backgroundColor: colors.overlayTrust,
+    borderRadius: 9999,
+    paddingVertical: 4,
+    paddingLeft: 10,
+    paddingRight: 14,
+    overflow: 'visible',
+  },
+  paymentStatusPillRefunded: {
+    backgroundColor: colors.overlayPrimary,
+  },
+  paymentStatus: {
+    flexShrink: 0,
+    fontFamily: typography.fontFamily,
+    fontSize: typography.sizes.label,
+    lineHeight: typography.lineHeights.label,
+    fontWeight: typography.weights.medium,
+    letterSpacing: 0,
+    color: colors.success,
+    includeFontPadding: false,
+    paddingRight: 2,
+  },
+  paymentStatusRefunded: {
+    color: colors.error,
   },
   rowHeader: {
     flexDirection: 'row',

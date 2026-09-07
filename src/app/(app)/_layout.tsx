@@ -11,9 +11,7 @@ export default function AppTabsLayout() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
-          height: 64,
           paddingTop: spacing.sm,
-          paddingBottom: spacing.sm,
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
         },

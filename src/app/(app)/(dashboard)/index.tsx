@@ -142,7 +142,9 @@ export default function DashboardScreen() {
       <View style={styles.header}>
         <View style={styles.headerBrand}>
           <Image source={logo} style={styles.logo} contentFit="contain" />
-          <Text style={styles.headerTitle}>ePickup Shop</Text>
+          <Text numberOfLines={1} style={styles.headerTitle}>
+            ePickup Shop
+          </Text>
         </View>
         <View style={styles.headerActions}>
           <View style={[styles.openPill, !isOpen && styles.openPillClosed]}>
@@ -361,6 +363,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.overlayHeader,
   },
   headerBrand: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
@@ -368,8 +372,10 @@ const styles = StyleSheet.create({
   logo: {
     width: 32,
     height: 32,
+    flexShrink: 0,
   },
   headerTitle: {
+    flexShrink: 1,
     fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
@@ -377,6 +383,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   headerActions: {
+    flexShrink: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
@@ -387,8 +394,10 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     backgroundColor: colors.overlayTrust,
     borderRadius: 9999,
-    paddingHorizontal: 12,
     paddingVertical: spacing.xs,
+    paddingLeft: 12,
+    paddingRight: 14,
+    flexShrink: 0,
   },
   openPillClosed: {
     backgroundColor: colors.overlayPrimary,
@@ -407,8 +416,10 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
     fontWeight: typography.weights.medium,
-    letterSpacing: typography.letterSpacing.label,
+    letterSpacing: 0,
     color: colors.success,
+    includeFontPadding: false,
+    paddingRight: 2,
   },
   openPillTextClosed: {
     color: colors.error,
@@ -646,8 +657,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily,
     fontSize: typography.sizes.input,
     lineHeight: typography.lineHeights.input,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+    letterSpacing: 0.4,
     color: colors.textSecondary,
   },
   statValue: {

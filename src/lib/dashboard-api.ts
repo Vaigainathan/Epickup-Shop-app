@@ -447,3 +447,77 @@ export async function updateShopStatus(isOpen: boolean): Promise<boolean> {
   }
   return isOpen;
 }
+
+export type PaymentHistoryItem = {
+  orderId: string;
+  displayId: number | null;
+  amount: number;
+  paymentStatus: 'confirmed' | 'refunded';
+  at: Date | null;
+};
+
+function parseHistoryTimestamp(value: unknown): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const ms = value < 1e12 ? value * 1000 : value;
+    const date = new Date(ms);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  const record = asRecord(value);
+  if (!record) return null;
+  const seconds = readNumber(record, ['_seconds', 'seconds']);
+  if (seconds === null) return null;
+  const nanos = readNumber(record, ['_nanoseconds', 'nanoseconds']) ?? 0;
+  const date = new Date(seconds * 1000 + Math.floor(nanos / 1e6));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function parsePaymentHistoryItem(value: unknown): PaymentHistoryItem | null {
+  const record = asRecord(value);
+  if (!record) return null;
+  const orderId = readString(record, ['orderId', 'id']);
+  const paymentStatus = readString(record, ['paymentStatus', 'status']);
+  if (!orderId || (paymentStatus !== 'confirmed' && paymentStatus !== 'refunded')) {
+    return null;
+  }
+  return {
+    orderId,
+    displayId: readNumber(record, ['displayId']),
+    amount: readNumber(record, ['amount']) ?? 0,
+    paymentStatus,
+    at: parseHistoryTimestamp(record.at ?? record.confirmedAt ?? record.refundedAt),
+  };
+}
+
+export async function fetchPaymentHistory(): Promise<PaymentHistoryItem[]> {
+  const body = await requestJson(
+    '/api/shop/payment-history',
+    { method: 'GET' },
+    'Could not load payment history.',
+  );
+  const data = nestedData(body) ?? body;
+  const raw = Array.isArray(data?.history)
+    ? data.history
+    : Array.isArray(body?.history)
+      ? body.history
+      : [];
+  return raw
+    .map(parsePaymentHistoryItem)
+    .filter((item): item is PaymentHistoryItem => item !== null);
+}
+
+export async function deactivateShop(): Promise<void> {
+  await requestJson(
+    '/api/shop/deactivate',
+    { method: 'POST' },
+    'Could not deactivate your shop.',
+  );
+}
+
