@@ -7,16 +7,25 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "environment": "development",
       "android": {
         "buildType": "apk"
       },
       "env": {
-        "API_URL": "https://epickupbackend-staging.up.railway.app",
+        "EXPO_PUBLIC_API_URL": "https://epickupbackend-staging.up.railway.app",
         "APP_ENV": "staging"
       }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "environment": "preview",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://epickupbackend-staging.up.railway.app",
+        "APP_ENV": "staging"
+      }
     },
     "production": {
       "autoIncrement": true
