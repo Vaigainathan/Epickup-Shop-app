@@ -2,8 +2,7 @@
   "expo": {
     "name": "EPickup Shop",
     "slug": "epickup-shop",
-    "version": "1.0.5",
-    "versionCode": 1,
+    "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/images/epickup_shop_logo_1024.png",
     "scheme": "epickup-shop",
@@ -35,6 +34,9 @@
         }
       ],
       "expo-secure-store",
+      "expo-image",
+      "expo-web-browser",
+      "expo-font",
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
       [
