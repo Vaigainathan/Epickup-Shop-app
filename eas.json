@@ -1,7 +1,7 @@
 {
   "cli": {
     "version": ">= 22.0.0",
-    "appVersionSource": "remote"
+    "appVersionSource": "local"
   },
   "build": {
     "development": {
@@ -28,7 +28,6 @@
       }
     },
     "production": {
-      "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://epickupbackend-staging.up.railway.app",
         "APP_ENV": "staging"

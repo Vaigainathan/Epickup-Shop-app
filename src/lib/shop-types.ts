@@ -9,11 +9,10 @@ export const SHOP_TYPES = [
   'Beauty & Personal Care',
   'Sports & Fitness',
   'Books & Stationery',
-  'Automotive',
+  'Automotive Spares & Lubricants',
   'Baby & Kids',
   'Pet Supplies',
   'Gifts, Flowers & Accessories',
-  'Other / General Retail',
 ] as const;
 
 export type ShopType = (typeof SHOP_TYPES)[number];
