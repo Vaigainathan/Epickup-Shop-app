@@ -17,12 +17,13 @@ import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
 import {
   cancelShopOrder,
-  cancelledCopy,
+  cancelledDetailCopy,
   confirmOrderHandover,
   confirmOrderPayment,
   fetchShopOrder,
   formatDisplayId,
   formatInr,
+  formatIstTime,
   itemCount,
   markOrderReady,
   markRefundSent,
@@ -30,7 +31,10 @@ import {
   ordersErrorMessage,
   rejectShopOrder,
   relativeTime,
+  shopOrderLabelDetail,
+  shopOrderLabelShort,
   ShopOrder,
+  showRefundDuePill,
 } from '@/lib/orders-api';
 
 const CANCEL_REASONS = ['Out of stock', 'Shop closing soon', 'Technical issue', 'Other'] as const;
@@ -41,14 +45,43 @@ function paramId(raw: string | string[] | undefined): string | null {
   return trimmed && trimmed.length > 0 ? trimmed : null;
 }
 
-function statusLabel(order: ShopOrder): string {
-  if (order.orderStatus === 'awaiting_payment') return 'AWAITING PAYMENT';
-  if (order.orderStatus === 'preparing') return 'PREPARING';
-  if (order.orderStatus === 'ready') return 'READY FOR PICKUP';
-  if (order.orderStatus === 'handed_over') return 'HANDED OVER';
-  if (order.orderStatus === 'completed') return 'DONE';
-  if (order.payment.status === 'expired') return 'PAYMENT UNCONFIRMED';
-  return 'CANCELLED';
+type AddressDisplay = {
+  lines: string[];
+  labelTag: string | null;
+};
+
+function normalizeAddressPart(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function formatAddressDisplay(order: ShopOrder): AddressDisplay {
+  const addr = order.deliveryAddress;
+  if (!addr) {
+    const text = order.deliveryAddressText?.trim();
+    return { lines: text ? [text] : [], labelTag: null };
+  }
+
+  const labelTag = addr.label?.trim() || null;
+  const lines: string[] = [];
+
+  const receiver = [addr.receiverName, addr.receiverPhone].filter(Boolean).join(' · ');
+  if (receiver) lines.push(receiver);
+
+  const streetLine = [addr.houseNo, addr.street].filter(Boolean).join(', ');
+  if (streetLine) lines.push(streetLine);
+
+  const landmark = addr.landmark?.trim();
+  if (landmark && (!labelTag || normalizeAddressPart(landmark) !== normalizeAddressPart(labelTag))) {
+    lines.push(landmark);
+  }
+
+  const text = addr.text?.trim();
+  if (lines.length === 0 && text) {
+    const dupLabel = labelTag && normalizeAddressPart(text) === normalizeAddressPart(labelTag);
+    if (!dupLabel) lines.push(text);
+  }
+
+  return { lines, labelTag };
 }
 
 export default function OrderDetailsScreen() {
@@ -215,6 +248,18 @@ export default function OrderDetailsScreen() {
   const showRefund =
     refundOpen || order.payment.status === 'refund_pending';
   const received = relativeTime(order.createdAt);
+  const statusShort = shopOrderLabelShort(order);
+  const statusDetail = shopOrderLabelDetail(order);
+  const expectedAmount = order.expectedAmount ?? order.payment.amount;
+  const payBy = formatIstTime(order.window.end);
+  const addressDisplay = formatAddressDisplay(order);
+  const showDelivery = addressDisplay.lines.length > 0 || addressDisplay.labelTag !== null;
+  const showPayByRow =
+    Boolean(payBy) &&
+    (order.orderStatus === 'awaiting_payment' ||
+      order.orderStatus === 'payment_unconfirmed' ||
+      order.orderStatus === 'payment_review');
+  const customerName = order.customerName?.trim() ?? '';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -231,23 +276,88 @@ export default function OrderDetailsScreen() {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.statusRow}>
-          <View style={[styles.statusPill, order.orderStatus === 'ready' && styles.statusPillReady]}>
-            <Text
-              numberOfLines={1}
-              style={[styles.statusPillText, order.orderStatus === 'ready' && styles.statusPillTextReady]}>
-              {statusLabel(order)}
-            </Text>
+          <View style={styles.statusTags}>
+            <View style={[styles.statusPill, order.orderStatus === 'ready' && styles.statusPillReady]}>
+              <Text
+                numberOfLines={2}
+                style={[styles.statusPillText, order.orderStatus === 'ready' && styles.statusPillTextReady]}>
+                {statusShort}
+              </Text>
+            </View>
+            {showRefundDuePill(order) ? (
+              <View style={styles.refundPill}>
+                <Text style={styles.refundPillText}>Refund due</Text>
+              </View>
+            ) : null}
           </View>
           <Text numberOfLines={1} style={styles.displayId}>
             {formatDisplayId(order.displayId)}
           </Text>
         </View>
+        {statusDetail ? <Text style={styles.statusDetail}>{statusDetail}</Text> : null}
         {received ? <Text style={styles.received}>Received {received.toLowerCase()}</Text> : null}
 
-        {order.deliveryAddressText ? (
+        <View style={styles.card}>
+          <Text style={styles.cardEyebrow}>CUSTOMER & PAYMENT</Text>
+          {customerName ? (
+            <Text style={styles.bodyLine}>
+              <Text style={styles.bodyLabel}>Customer: </Text>
+              {customerName}
+            </Text>
+          ) : null}
+          {order.payerUpiName ? (
+            <Text style={styles.bodyLine}>
+              <Text style={styles.bodyLabel}>Name on UPI: </Text>
+              {order.payerUpiName}
+            </Text>
+          ) : null}
+          {order.payment.customerUtr ? (
+            <Text style={styles.bodyLine}>
+              <Text style={styles.bodyLabel}>Customer UTR: </Text>
+              {order.payment.customerUtr}
+            </Text>
+          ) : null}
+          <Text style={styles.bodyLine}>
+            <Text style={styles.bodyLabel}>Expected amount: </Text>
+            {formatInr(expectedAmount)}
+          </Text>
+          {showPayByRow ? (
+            <Text style={styles.bodyLine}>
+              <Text style={styles.bodyLabel}>Pay by: </Text>
+              {payBy} IST
+            </Text>
+          ) : null}
+        </View>
+
+        {order.customerNote ? (
+          <View style={styles.card}>
+            <Text style={styles.cardEyebrow}>CUSTOMER NOTE</Text>
+            <Text style={styles.address}>{order.customerNote}</Text>
+          </View>
+        ) : null}
+
+        {showDelivery ? (
           <View style={styles.card}>
             <Text style={styles.cardEyebrow}>DELIVERY ADDRESS</Text>
-            <Text style={styles.address}>{order.deliveryAddressText}</Text>
+            {addressDisplay.labelTag ? (
+              <View style={styles.addressLabelTag}>
+                <Text style={styles.addressLabelTagText}>{addressDisplay.labelTag}</Text>
+              </View>
+            ) : null}
+            {addressDisplay.lines.map((line, index) => (
+              <Text key={`${line}-${index}`} style={styles.address}>
+                {line}
+              </Text>
+            ))}
+          </View>
+        ) : null}
+
+        {order.stockShortOpen ? (
+          <View style={styles.stockBanner}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={20} color={colors.error} />
+            <Text style={styles.stockBannerText}>
+              Stock short — mark unavailable items or cancel with refund when available.
+            </Text>
           </View>
         ) : null}
 
@@ -329,7 +439,7 @@ export default function OrderDetailsScreen() {
         {order.orderStatus === 'cancelled' ? (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Cancelled</Text>
-            <Text style={styles.body}>{cancelledCopy(order)}</Text>
+            <Text style={styles.body}>{cancelledDetailCopy(order)}</Text>
           </View>
         ) : null}
 
@@ -485,10 +595,10 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
-  },
+},
   flex: {
     flex: 1,
-  },
+},
   nav: {
     height: 64,
     flexDirection: 'row',
@@ -496,19 +606,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.screen,
     gap: spacing.md,
     backgroundColor: colors.overlayHeader,
-  },
+},
   backButton: {
-    width: 40,
-    height: 40,
+    width: 48,
+    height: 48,
     borderRadius: 9999,
     alignItems: 'center',
     justifyContent: 'center',
   },
   navTitle: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.heading,
   },
   content: {
@@ -518,10 +627,59 @@ const styles = StyleSheet.create({
   },
   statusRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: spacing.sm,
     flexWrap: 'wrap',
+},
+  statusTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    flex: 1,
+    minWidth: 0,
+},
+  refundPill: {
+    borderRadius: 9999,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: 12,
+    backgroundColor: colors.overlayPrimary,
+},
+  refundPillText: {
+    fontSize: typography.sizes.caption,
+    lineHeight: typography.lineHeights.caption,
+    color: colors.error,
+    fontFamily: typography.fonts.medium,
+  },
+  statusDetail: {
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.sizes.body,
+    lineHeight: typography.lineHeights.body,
+    color: colors.textSecondary,
+  },
+  bodyLine: {
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.sizes.body,
+    lineHeight: typography.lineHeights.body,
+    color: colors.heading,
+  },
+  bodyLabel: {
+    color: colors.textSecondary,
+  },
+  stockBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    backgroundColor: colors.overlayPrimary,
+    borderRadius: 12,
+    padding: spacing.md,
+},
+  stockBannerText: {
+    flex: 1,
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.sizes.body,
+    lineHeight: typography.lineHeights.body,
+    color: colors.error,
   },
   statusPill: {
     backgroundColor: colors.overlayTrust,
@@ -532,15 +690,14 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     maxWidth: '100%',
     overflow: 'visible',
-  },
+},
   statusPillReady: {
     backgroundColor: colors.overlayTrust,
   },
   statusPillText: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
-    fontWeight: typography.weights.medium,
+    fontFamily: typography.fonts.medium,
     letterSpacing: 0,
     color: colors.success,
     includeFontPadding: false,
@@ -551,13 +708,13 @@ const styles = StyleSheet.create({
   },
   displayId: {
     flexShrink: 0,
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
     color: colors.textSecondary,
   },
   received: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.textSecondary,
@@ -567,29 +724,41 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: spacing.md,
     gap: spacing.sm,
-  },
+},
   cardEyebrow: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
     letterSpacing: typography.letterSpacing.overline,
     color: colors.textSecondary,
   },
   cardTitle: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.heading,
   },
   address: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.heading,
   },
+  addressLabelTag: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.tintSoft,
+    borderRadius: 6,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+},
+  addressLabelTagText: {
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.sizes.label,
+    lineHeight: typography.lineHeights.label,
+    color: colors.textSecondary,
+  },
   body: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.textSecondary,
@@ -601,7 +770,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.mapFill,
     borderRadius: 8,
     padding: spacing.md,
-  },
+},
   driverAvatar: {
     width: 48,
     height: 48,
@@ -609,16 +778,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.hero,
     alignItems: 'center',
     justifyContent: 'center',
-  },
+},
   driverName: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.medium,
+    fontFamily: typography.fonts.medium,
     color: colors.heading,
   },
   driverMeta: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.textSecondary,
@@ -629,9 +797,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
     alignItems: 'center',
     gap: spacing.xs,
-  },
+},
   otpLabel: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
     letterSpacing: typography.letterSpacing.overline,
@@ -639,21 +807,20 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   otpValue: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.display,
     lineHeight: typography.lineHeights.display,
-    fontWeight: typography.weights.bold,
+    fontFamily: typography.fonts.bold,
     letterSpacing: typography.letterSpacing.display,
     color: colors.white,
   },
   otpId: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.overlayHeroText,
   },
   hint: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.textSecondary,
@@ -664,7 +831,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: spacing.md,
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.input,
     color: colors.heading,
     backgroundColor: colors.background,
@@ -674,7 +841,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     paddingVertical: spacing.sm,
-  },
+},
   itemIcon: {
     width: 64,
     height: 64,
@@ -682,24 +849,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.tintSoft,
     alignItems: 'center',
     justifyContent: 'center',
-  },
+},
   itemName: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.heading,
   },
   itemMeta: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.textSecondary,
   },
   itemPrice: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.heading,
   },
   totals: {
@@ -707,36 +873,35 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: spacing.md,
     gap: spacing.sm,
-  },
+},
   rowBetween: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
+},
   totalLabel: {
     flex: 1,
     paddingRight: spacing.md,
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.textSecondary,
   },
   totalValue: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.heading,
   },
   totalHint: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
     color: colors.textMuted,
   },
   actions: {
     gap: spacing.sm,
-  },
+},
   primary: {
     minHeight: spacing.input,
     borderRadius: 12,
@@ -746,10 +911,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   primaryLabel: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     letterSpacing: typography.letterSpacing.button,
     color: colors.white,
     textAlign: 'center',
@@ -761,14 +925,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dangerLabel: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.error,
   },
   inlineError: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.error,
@@ -783,34 +946,33 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(0, 0, 0, 0.35)',
-  },
+},
   modalDismiss: {
     flex: 1,
-  },
+},
   modalCard: {
     padding: spacing.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     backgroundColor: colors.surface,
     gap: spacing.md,
-  },
+},
   modalHandle: {
     alignSelf: 'center',
     width: 40,
     height: 4,
     borderRadius: 9999,
     backgroundColor: colors.border,
-  },
+},
   modalTitle: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.heading,
     textAlign: 'center',
   },
   modalBody: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.textSecondary,
@@ -823,7 +985,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     borderRadius: 12,
     padding: spacing.md,
-  },
+},
   reasonSelected: {
     borderWidth: 1,
     borderColor: colors.primary,
@@ -834,13 +996,13 @@ const styles = StyleSheet.create({
     borderRadius: 9999,
     borderWidth: 2,
     borderColor: colors.borderStrong,
-  },
+},
   radioOn: {
     borderColor: colors.primary,
     backgroundColor: colors.primary,
   },
   reasonLabel: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.heading,
@@ -860,10 +1022,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   goBackLabel: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.heading,
   },
 });

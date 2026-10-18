@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, spacing, typography } from '@/constants/theme';
 import { DashboardApiError, deactivateShop } from '@/lib/dashboard-api';
+import { unregisterShopPushBestEffort } from '@/lib/shop-push-registration';
 import { wipeShopSession } from '@/lib/session';
 
 export default function DeactivateShopScreen() {
@@ -20,6 +21,7 @@ export default function DeactivateShopScreen() {
     setInProgress(false);
     try {
       await deactivateShop();
+      await unregisterShopPushBestEffort();
       const cleared = await wipeShopSession();
       if (!cleared) {
         setError('Shop deactivated, but the session could not be cleared. Please log out.');
@@ -116,10 +118,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   navTitle: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.heading,
   },
   body: {
@@ -148,23 +149,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.heading,
     lineHeight: typography.lineHeights.heading,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     letterSpacing: typography.letterSpacing.heading,
     color: colors.heading,
     textAlign: 'center',
   },
   copy: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.textSecondary,
     textAlign: 'center',
   },
   error: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.error,
@@ -182,10 +182,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   deactivateLabel: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.white,
   },
   cancel: {
@@ -197,10 +196,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cancelLabel: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.textSecondary,
   },
   disabled: {

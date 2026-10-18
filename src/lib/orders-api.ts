@@ -1,5 +1,12 @@
 import { apiUrl } from '@/lib/api';
 import { getSessionToken } from '@/lib/session';
+import {
+  cancelledDetailCopy,
+  mergeAwaitingPaymentOrders,
+  parseOrder,
+  parseTimestamp,
+  ShopOrder,
+} from '@/lib/shop-order-types';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -15,64 +22,14 @@ export class OrdersApiError extends Error {
   }
 }
 
-export type ShopOrderStatus =
-  | 'awaiting_payment'
-  | 'preparing'
-  | 'ready'
-  | 'handed_over'
-  | 'completed'
-  | 'cancelled';
-
-export type ShopPaymentStatus =
-  | 'pending'
-  | 'initiated'
-  | 'customer_claimed'
-  | 'confirmed'
-  | 'expired'
-  | 'refund_pending'
-  | 'refunded';
-
-export type ShopOrderItem = {
-  productId: string | null;
-  variantId: string | null;
-  name: string;
-  price: number;
-  qty: number;
-};
-
-export type ShopOrderDriverInfo = {
-  name: string;
-  phone: string;
-  vehicle: string;
-};
-
-export type ShopOrder = {
-  id: string;
-  displayId: number | null;
-  handoverOtp: string | null;
-  items: ShopOrderItem[];
-  itemsTotal: number;
-  deliveryFee: number;
-  deliveryAddressText: string;
-  orderStatus: ShopOrderStatus;
-  linkedBookingId: string | null;
-  driverInfo: ShopOrderDriverInfo | null;
-  payment: {
-    status: ShopPaymentStatus | null;
-    amount: number;
-    shopUpiId: string | null;
-    customerUpiId: string | null;
-    confirmedAt: Date | null;
-    expiredAt: Date | null;
-    refundedAt: Date | null;
-  };
-  cancellation: {
-    reason: string | null;
-    cancelledAt: Date | null;
-  };
-  createdAt: Date | null;
-  updatedAt: Date | null;
-};
+export type {
+  ShopDeliveryAddress,
+  ShopOrder,
+  ShopOrderDriverInfo,
+  ShopOrderItem,
+  ShopOrderStatus,
+  ShopPaymentStatus,
+} from '@/lib/shop-order-types';
 
 export type OrderTransitionResult = {
   order: ShopOrder;
@@ -82,14 +39,17 @@ export type OrderTransitionResult = {
 
 export type OrdersListFilter = 'all' | 'awaiting_payment' | 'preparing' | 'ready' | 'completed';
 
-const ORDER_STATUSES = new Set<ShopOrderStatus>([
-  'awaiting_payment',
-  'preparing',
-  'ready',
-  'handed_over',
-  'completed',
-  'cancelled',
-]);
+export {
+  cancelledDetailCopy,
+  formatIstTime,
+  hasBalanceUtr,
+  mergeAwaitingPaymentOrders,
+  parseOrder,
+  parseTimestamp,
+  shopOrderLabelDetail,
+  shopOrderLabelShort,
+  showRefundDuePill,
+} from '@/lib/shop-order-types';
 
 function asRecord(value: unknown): JsonRecord | null {
   return value && typeof value === 'object' ? (value as JsonRecord) : null;
@@ -141,8 +101,14 @@ function backendMessage(body: JsonRecord | null, fallback: string): string {
   return fallback;
 }
 
+const GENERIC_ORDER_ERROR = 'Something went wrong. Try again.';
+
 export function ordersErrorMessage(error: unknown, fallback: string): string {
   if (!(error instanceof OrdersApiError)) return fallback;
+
+  if (error.status === 401 || error.code === 'UNAUTHENTICATED') {
+    return 'Your session expired. Please log in again.';
+  }
 
   switch (error.code) {
     case 'ORDER_NOT_FOUND':
@@ -150,7 +116,7 @@ export function ordersErrorMessage(error: unknown, fallback: string): string {
     case 'INVALID_STATUS':
       return 'Invalid order filter.';
     case 'INVALID_TRANSITION':
-      return error.message || 'This order cannot be updated from its current state.';
+      return 'This order cannot be updated from its current state.';
     case 'MISSING_LOCATION':
       return 'Shop pickup location and delivery coordinates are required before marking ready.';
     case 'INVALID_HANDOVER':
@@ -159,71 +125,48 @@ export function ordersErrorMessage(error: unknown, fallback: string): string {
       return 'Order ID or OTP does not match.';
     case 'MISSING_REASON':
       return 'A cancellation reason is required.';
-    case 'UNAUTHENTICATED':
-      return error.message || 'Your session expired. Please log in again.';
+    case 'FULL_UTR_REQUIRED':
+      return 'Enter the full 12-digit UTR from your UPI app.';
+    case 'UTR_USED':
+      return 'This UTR is already linked to another order. Check the number and try again.';
+    case 'INVALID_STATE':
+      return "This action isn't available for this order right now. Refresh and try again.";
+    case 'AMOUNT_DIFFERS_UNAVAILABLE':
+      return "Amount differs can't be used on this order. Refresh the order details.";
+    case 'BALANCE_WINDOW_CLOSED':
+      return 'The time to pay the balance has passed. Refresh the order.';
+    case 'NOT_FOUND_REQUIRES_UTR':
+      return 'Enter a UTR before marking payment as not found.';
+    case 'ALREADY_ANSWERED':
+      return 'You already responded to this payment check.';
+    case 'UTR_PRESENT':
+      return "You can't reject this order after the customer entered a UTR. Confirm or report a payment issue.";
+    case 'CANCEL_NOT_ALLOWED':
+      return "This order can't be cancelled at this stage.";
+    case 'ALL_ITEMS_UNAVAILABLE':
+      return 'All items are already marked unavailable.';
+    case 'ALREADY_UNAVAILABLE':
+      return 'Those items are already marked unavailable.';
+    case 'REFUND_CAP':
+      return 'Refund amount is invalid. Refresh and use the amount shown.';
+    case 'STOCK_SHORT_UNRESOLVED':
+      return 'Resolve stock short (mark unavailable items or cancel) before continuing.';
+    case 'ALREADY_SUBMITTED':
+      return 'This was already submitted. Refresh the order.';
+    case 'AMOUNT_MISMATCH':
+      return "The refund amount doesn't match what's due. Use the exact amount shown.";
+    case 'REFUND_UTR_REQUIRED':
+      return 'Enter the refund UTR and amount to mark this refund sent.';
+    case 'RATE_LIMIT_EXCEEDED':
+    case 'RATE_LIMITED':
+      return 'Too many attempts. Wait a minute and try again.';
     case 'NETWORK_ERROR':
-      return error.message || fallback;
+      return fallback || 'Check your connection and try again.';
+    case 'INVALID_RESPONSE':
+      return GENERIC_ORDER_ERROR;
     default:
-      return error.message || fallback;
+      return GENERIC_ORDER_ERROR;
   }
-}
-
-function readString(record: JsonRecord | null, keys: string[]): string | null {
-  if (!record) return null;
-  for (const key of keys) {
-    const value = record[key];
-    if (typeof value === 'string' && value.trim().length > 0) {
-      return value.trim();
-    }
-  }
-  return null;
-}
-
-function readNumber(record: JsonRecord | null, keys: string[]): number | null {
-  if (!record) return null;
-  for (const key of keys) {
-    const value = record[key];
-    if (typeof value === 'number' && Number.isFinite(value)) return value;
-    if (typeof value === 'string' && value.trim().length > 0) {
-      const parsed = Number(value);
-      if (Number.isFinite(parsed)) return parsed;
-    }
-  }
-  return null;
-}
-
-function readBoolean(record: JsonRecord | null, keys: string[]): boolean | null {
-  if (!record) return null;
-  for (const key of keys) {
-    const value = record[key];
-    if (typeof value === 'boolean') return value;
-  }
-  return null;
-}
-
-export function parseTimestamp(value: unknown): Date | null {
-  if (!value) return null;
-  if (value instanceof Date) {
-    return Number.isNaN(value.getTime()) ? null : value;
-  }
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    const ms = value < 1e12 ? value * 1000 : value;
-    const date = new Date(ms);
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-  if (typeof value === 'string' && value.trim().length > 0) {
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-  const record = asRecord(value);
-  if (!record) return null;
-  const seconds = readNumber(record, ['_seconds', 'seconds']);
-  if (seconds !== null) {
-    const nanos = readNumber(record, ['_nanoseconds', 'nanoseconds']) ?? 0;
-    const date = new Date(seconds * 1000 + Math.floor(nanos / 1e6));
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-  return null;
 }
 
 export function formatDisplayId(displayId: number | null | undefined): string {
@@ -258,13 +201,9 @@ export function relativeTime(date: Date | null): string {
   return `${diffDay} days ago`;
 }
 
+/** @deprecated Use cancelledDetailCopy from shop-order-types */
 export function cancelledCopy(order: ShopOrder): string {
-  if (order.payment.status === 'expired') {
-    return "Payment wasn't confirmed in time";
-  }
-  const reason = order.cancellation.reason?.trim();
-  if (reason) return reason;
-  return 'Order was rejected';
+  return cancelledDetailCopy(order);
 }
 
 async function authorizedRequest(path: string, init: RequestInit = {}): Promise<Response> {
@@ -304,92 +243,39 @@ async function requestJson(
   return body;
 }
 
-function parseItem(value: unknown): ShopOrderItem | null {
-  const record = asRecord(value);
-  if (!record) return null;
-  const name = readString(record, ['name']) ?? 'Item';
-  const price = readNumber(record, ['price']) ?? 0;
-  const qty = readNumber(record, ['qty', 'quantity']) ?? 0;
-  return {
-    productId: readString(record, ['productId']),
-    variantId: readString(record, ['variantId']),
-    name,
-    price,
-    qty,
-  };
+function parseOrdersList(body: JsonRecord | null): ShopOrder[] {
+  const data = nestedData(body) ?? body;
+  const raw = Array.isArray(data?.orders) ? data.orders : Array.isArray(body?.orders) ? body.orders : [];
+  return raw.map(parseOrder).filter((order): order is ShopOrder => order !== null);
 }
 
-function parseDriverInfo(value: unknown): ShopOrderDriverInfo | null {
-  const record = asRecord(value);
-  if (!record) return null;
-  const name = readString(record, ['name']) ?? '';
-  const phone = readString(record, ['phone']) ?? '';
-  const vehicle = readString(record, ['vehicle', 'vehicleNumber']) ?? '';
-  if (!name && !phone && !vehicle) return null;
-  return { name, phone, vehicle };
+async function fetchOrdersByStatus(status: string): Promise<ShopOrder[]> {
+  const body = await requestJson(
+    `/api/shop/orders?status=${encodeURIComponent(status)}`,
+    { method: 'GET' },
+    'Could not load orders.',
+  );
+  return parseOrdersList(body);
 }
 
-function parseOrderStatus(value: string | null): ShopOrderStatus | null {
-  if (!value) return null;
-  return ORDER_STATUSES.has(value as ShopOrderStatus) ? (value as ShopOrderStatus) : null;
-}
+export async function fetchShopOrders(filter: OrdersListFilter = 'all'): Promise<ShopOrder[]> {
+  if (filter === 'all') {
+    const body = await requestJson('/api/shop/orders', { method: 'GET' }, 'Could not load orders.');
+    return parseOrdersList(body);
+  }
 
-function parsePaymentStatus(value: string | null): ShopPaymentStatus | null {
-  if (!value) return null;
-  const allowed: ShopPaymentStatus[] = [
-    'pending',
-    'initiated',
-    'customer_claimed',
-    'confirmed',
-    'expired',
-    'refund_pending',
-    'refunded',
-  ];
-  return allowed.includes(value as ShopPaymentStatus) ? (value as ShopPaymentStatus) : null;
-}
+  if (filter === 'awaiting_payment') {
+    const batches = await Promise.all([
+      fetchOrdersByStatus('awaiting_payment'),
+      fetchOrdersByStatus('payment_unconfirmed'),
+      fetchOrdersByStatus('payment_review'),
+    ]);
+    return mergeAwaitingPaymentOrders(batches);
+  }
 
-function parseOrder(value: unknown): ShopOrder | null {
-  const record = asRecord(value);
-  if (!record) return null;
-  const id = readString(record, ['id']);
-  const orderStatus = parseOrderStatus(readString(record, ['orderStatus']));
-  if (!id || !orderStatus) return null;
-
-  const payment = asRecord(record.payment) ?? {};
-  const cancellation = asRecord(record.cancellation) ?? {};
-  const address = asRecord(record.deliveryAddress);
-  const itemsRaw = Array.isArray(record.items) ? record.items : [];
-  const items = itemsRaw.map(parseItem).filter((item): item is ShopOrderItem => item !== null);
-  const itemsTotal = readNumber(record, ['itemsTotal']) ?? 0;
-  const paymentAmount = readNumber(payment, ['amount']) ?? itemsTotal;
-
-  return {
-    id,
-    displayId: readNumber(record, ['displayId']),
-    handoverOtp: readString(record, ['handoverOtp']),
-    items,
-    itemsTotal,
-    deliveryFee: readNumber(record, ['deliveryFee']) ?? 0,
-    deliveryAddressText: readString(address, ['text']) ?? '',
-    orderStatus,
-    linkedBookingId: readString(record, ['linkedBookingId']),
-    driverInfo: parseDriverInfo(record.driverInfo),
-    payment: {
-      status: parsePaymentStatus(readString(payment, ['status'])),
-      amount: paymentAmount,
-      shopUpiId: readString(payment, ['shopUpiId', 'upiId']),
-      customerUpiId: readString(payment, ['customerUpiId']),
-      confirmedAt: parseTimestamp(payment.confirmedAt),
-      expiredAt: parseTimestamp(payment.expiredAt),
-      refundedAt: parseTimestamp(payment.refundedAt),
-    },
-    cancellation: {
-      reason: readString(cancellation, ['reason']),
-      cancelledAt: parseTimestamp(cancellation.cancelledAt),
-    },
-    createdAt: parseTimestamp(record.createdAt),
-    updatedAt: parseTimestamp(record.updatedAt),
-  };
+  const status =
+    filter === 'completed' ? 'completed' : filter === 'preparing' ? 'preparing' : 'ready';
+  return fetchOrdersByStatus(status);
 }
 
 function parseTransition(body: JsonRecord | null, fallback: string): OrderTransitionResult {
@@ -399,24 +285,13 @@ function parseTransition(body: JsonRecord | null, fallback: string): OrderTransi
     throw new OrdersApiError(fallback, 500, 'INVALID_RESPONSE');
   }
   const message = typeof body?.message === 'string' ? body.message : '';
-  const refundRequired = readBoolean(data, ['refundRequired']);
+  const refundRequired =
+    data && typeof data.refundRequired === 'boolean' ? data.refundRequired : null;
   return {
     order,
     alreadyProcessed: message === 'Already processed',
     refundRequired,
   };
-}
-
-export async function fetchShopOrders(filter: OrdersListFilter = 'all'): Promise<ShopOrder[]> {
-  const query = filter === 'all' ? '' : `?status=${encodeURIComponent(filter)}`;
-  const body = await requestJson(
-    `/api/shop/orders${query}`,
-    { method: 'GET' },
-    'Could not load orders.',
-  );
-  const data = nestedData(body) ?? body;
-  const raw = Array.isArray(data?.orders) ? data.orders : Array.isArray(body?.orders) ? body.orders : [];
-  return raw.map(parseOrder).filter((order): order is ShopOrder => order !== null);
 }
 
 export async function fetchShopOrder(id: string): Promise<ShopOrder> {

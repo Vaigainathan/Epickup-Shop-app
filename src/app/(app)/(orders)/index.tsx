@@ -25,9 +25,11 @@ import {
   ordersErrorMessage,
   OrdersListFilter,
   relativeTime,
+  shopOrderLabelShort,
   ShopOrder,
-  ShopOrderStatus,
+  showRefundDuePill,
 } from '@/lib/orders-api';
+import { subscribeOrdersRefresh } from '@/lib/orders-refresh';
 
 const logo = require('@/assets/images/login/logo.png');
 const emptyIllustration = require('@/assets/images/orders/empty-orders.png');
@@ -46,35 +48,6 @@ function paramStatus(raw: string | string[] | undefined): OrdersListFilter {
     return value;
   }
   return 'all';
-}
-
-function statusLabel(status: ShopOrderStatus): string {
-  switch (status) {
-    case 'awaiting_payment':
-      return 'Awaiting Payment';
-    case 'preparing':
-      return 'Preparing';
-    case 'ready':
-      return 'Ready';
-    case 'handed_over':
-      return 'Handed Over';
-    case 'completed':
-      return 'Done';
-    case 'cancelled':
-      return 'Cancelled';
-    default:
-      return status;
-  }
-}
-
-function paymentTag(order: ShopOrder): { label: string; tone: 'pending' | 'ok' | 'warn' | 'muted' } | null {
-  const status = order.payment.status;
-  if (status === 'expired') return { label: 'Expired', tone: 'warn' };
-  if (status === 'refunded') return { label: 'Refunded', tone: 'muted' };
-  if (status === 'refund_pending') return { label: 'Refund pending', tone: 'warn' };
-  if (status === 'confirmed') return { label: 'Confirmed', tone: 'ok' };
-  if (order.orderStatus === 'awaiting_payment') return { label: 'Pending', tone: 'pending' };
-  return null;
 }
 
 function emptyCopy(filter: OrdersListFilter): { title: string; body: string } {
@@ -151,6 +124,11 @@ export default function OrdersScreen() {
       const next = userFilter.current ?? paramStatus(params.status);
       setFilter(next);
       load(next, paramChanged);
+
+      const unsubscribe = subscribeOrdersRefresh(() => {
+        load(next, false);
+      });
+      return unsubscribe;
     }, [load, params.status]),
   );
 
@@ -281,7 +259,8 @@ export default function OrdersScreen() {
 }
 
 function OrderCard({ order, onPress }: { order: ShopOrder; onPress: () => void }) {
-  const pay = paymentTag(order);
+  const statusTag = shopOrderLabelShort(order);
+  const refundDue = showRefundDuePill(order);
   const done = order.orderStatus === 'completed' || order.orderStatus === 'cancelled';
   const ready = order.orderStatus === 'ready';
   const count = itemCount(order);
@@ -316,26 +295,13 @@ function OrderCard({ order, onPress }: { order: ShopOrder; onPress: () => void }
                 order.orderStatus === 'ready' && styles.statusTextReady,
                 done && styles.statusTextDone,
               ]}>
-              {statusLabel(order.orderStatus)}
+              {statusTag}
             </Text>
           </View>
-          {pay ? (
-            <View
-              style={[
-                styles.payPill,
-                pay.tone === 'ok' && styles.payOk,
-                pay.tone === 'warn' && styles.payWarn,
-                pay.tone === 'muted' && styles.payMuted,
-              ]}>
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.payText,
-                  pay.tone === 'ok' && styles.payTextOk,
-                  pay.tone === 'warn' && styles.payTextWarn,
-                  pay.tone === 'muted' && styles.payTextMuted,
-                ]}>
-                {pay.label}
+          {refundDue ? (
+            <View style={[styles.payPill, styles.payWarn]}>
+              <Text numberOfLines={1} style={[styles.payText, styles.payTextWarn]}>
+                Refund due
               </Text>
             </View>
           ) : null}
@@ -372,11 +338,11 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
-  },
+},
   flex: {
     flex: 1,
     minWidth: 0,
-  },
+},
   header: {
     height: 64,
     flexShrink: 0,
@@ -385,25 +351,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.screen,
     backgroundColor: colors.overlayHeader,
-  },
+},
   headerBrand: {
     flex: 1,
     minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-  },
+},
   logo: {
     width: 32,
     height: 32,
     flexShrink: 0,
-  },
+},
   headerTitle: {
     flexShrink: 1,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.primary,
   },
   openPill: {
@@ -416,7 +381,7 @@ const styles = StyleSheet.create({
     paddingLeft: 12,
     paddingRight: 14,
     flexShrink: 0,
-  },
+},
   openPillClosed: {
     backgroundColor: colors.overlayPrimary,
   },
@@ -425,15 +390,14 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 9999,
     backgroundColor: colors.accent,
-  },
+},
   openDotClosed: {
     backgroundColor: colors.textMuted,
   },
   openPillText: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
-    fontWeight: typography.weights.medium,
+    fontFamily: typography.fonts.medium,
     letterSpacing: 0,
     color: colors.success,
     includeFontPadding: false,
@@ -446,10 +410,9 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     paddingHorizontal: spacing.screen,
     paddingTop: spacing.sm,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.heading,
     lineHeight: typography.lineHeights.heading,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     letterSpacing: typography.letterSpacing.heading,
     color: colors.heading,
   },
@@ -464,10 +427,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.md,
     gap: spacing.sm,
-  },
+},
   searchInput: {
     flex: 1,
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.heading,
@@ -476,8 +439,8 @@ const styles = StyleSheet.create({
     flexGrow: 0,
     flexShrink: 0,
     marginTop: spacing.md,
-    minHeight: 44,
-  },
+    minHeight: 48,
+},
   chips: {
     flexGrow: 0,
     alignItems: 'center',
@@ -487,20 +450,21 @@ const styles = StyleSheet.create({
   },
   chip: {
     flexShrink: 0,
+    minHeight: 48,
+    justifyContent: 'center',
     backgroundColor: colors.tintSoft,
     borderRadius: 9999,
-    paddingVertical: spacing.sm,
+    paddingVertical: 10,
     paddingLeft: spacing.md,
     paddingRight: 18,
-  },
+},
   chipSelected: {
     backgroundColor: colors.primary,
   },
   chipLabel: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.textSecondary,
   },
   chipLabelSelected: {
@@ -512,16 +476,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.overlayPrimary,
     borderRadius: 12,
     padding: spacing.md,
-  },
+},
   bannerText: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.error,
   },
   listFlex: {
     flex: 1,
-  },
+},
   list: {
     padding: spacing.screen,
     gap: spacing.md,
@@ -546,9 +510,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
     alignItems: 'flex-start',
-  },
+},
   orderId: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
     letterSpacing: typography.letterSpacing.label,
@@ -556,10 +520,9 @@ const styles = StyleSheet.create({
   },
   amount: {
     marginTop: spacing.xs,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.heading,
   },
   muted: {
@@ -570,7 +533,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     flexShrink: 0,
     maxWidth: '62%',
-  },
+},
   statusPill: {
     borderRadius: 9999,
     paddingVertical: spacing.xs,
@@ -593,10 +556,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.tintSoft,
   },
   statusText: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
-    fontWeight: typography.weights.medium,
+    fontFamily: typography.fonts.medium,
     letterSpacing: 0,
     color: colors.hero,
     includeFontPadding: false,
@@ -616,7 +578,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.overlayPrimary,
     flexShrink: 0,
     overflow: 'visible',
-  },
+},
   payOk: {
     backgroundColor: colors.overlayTrust,
   },
@@ -627,7 +589,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.tintSoft,
   },
   payText: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.caption,
     lineHeight: typography.lineHeights.caption,
     letterSpacing: 0,
@@ -648,14 +610,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
+},
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-  },
+},
   metaText: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.textSecondary,
@@ -667,12 +629,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
+},
   footerHint: {
     flex: 1,
     minWidth: 0,
     paddingRight: spacing.sm,
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
     color: colors.textMuted,
@@ -682,10 +644,9 @@ const styles = StyleSheet.create({
   },
   detailsLink: {
     flexShrink: 0,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.primary,
   },
   empty: {
@@ -694,22 +655,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
     gap: spacing.sm,
-  },
+},
   emptyImage: {
     width: 192,
     height: 192,
-  },
+},
   emptyTitle: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.heading,
     textAlign: 'center',
   },
   emptyBody: {
     maxWidth: 280,
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.textSecondary,
@@ -722,10 +682,9 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   emptyLinkText: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.primary,
   },
   pressed: {

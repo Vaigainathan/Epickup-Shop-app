@@ -252,10 +252,10 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
-  },
+},
   flex: {
     flex: 1,
-  },
+},
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: spacing.screen,
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
     width: 256,
     height: 256,
     opacity: 0.4,
-  },
+},
   blobBottom: {
     position: 'absolute',
     right: -128,
@@ -277,11 +277,11 @@ const styles = StyleSheet.create({
     width: 320,
     height: 320,
     opacity: 0.4,
-  },
+},
   branding: {
     alignItems: 'center',
     width: '100%',
-  },
+},
   logoCard: {
     width: 128,
     height: 128,
@@ -299,13 +299,12 @@ const styles = StyleSheet.create({
   logo: {
     width: 112,
     height: 112,
-  },
+},
   title: {
     marginTop: spacing.md,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.heading,
     lineHeight: typography.lineHeights.heading,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     letterSpacing: typography.letterSpacing.heading,
     color: colors.heading,
     textAlign: 'center',
@@ -313,15 +312,13 @@ const styles = StyleSheet.create({
   subtitle: {
     marginTop: spacing.xs,
     maxWidth: 300,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.regular,
+    fontFamily: typography.fonts.regular,
     color: colors.textSecondary,
     textAlign: 'center',
   },
   phoneHighlight: {
-    fontWeight: typography.weights.semibold,
     color: colors.heading,
   },
   card: {
@@ -341,7 +338,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: spacing.sm,
-  },
+},
   otpBox: {
     flex: 1,
     minHeight: spacing.input,
@@ -350,10 +347,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: colors.white,
     textAlign: 'center',
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.regular,
     color: colors.heading,
     paddingVertical: 0,
   },
@@ -361,10 +357,9 @@ const styles = StyleSheet.create({
     borderColor: colors.error,
   },
   errorText: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
-    fontWeight: typography.weights.medium,
+    fontFamily: typography.fonts.medium,
     color: colors.error,
     textAlign: 'center',
   },
@@ -387,29 +382,26 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   buttonLabel: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     letterSpacing: typography.letterSpacing.button,
     color: colors.white,
   },
   resendRow: {
     alignItems: 'center',
     paddingTop: spacing.xs,
-  },
+},
   resendMuted: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.regular,
+    fontFamily: typography.fonts.regular,
     color: colors.textMuted,
   },
   resendAction: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.bold,
+    fontFamily: typography.fonts.bold,
     color: colors.primary,
   },
 });

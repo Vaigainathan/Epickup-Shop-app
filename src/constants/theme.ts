@@ -38,7 +38,13 @@ export const colors = {
 } as const;
 
 export const typography = {
-  fontFamily: 'Inter',
+  fontFamily: 'Inter_400Regular',
+  fonts: {
+    regular: 'Inter_400Regular',
+    medium: 'Inter_500Medium',
+    semibold: 'Inter_600SemiBold',
+    bold: 'Inter_700Bold',
+  },
   weights: { regular: '400', medium: '500', semibold: '600', bold: '700' },
   sizes: {
     caption: 10,

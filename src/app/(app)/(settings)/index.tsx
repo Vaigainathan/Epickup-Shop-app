@@ -23,6 +23,7 @@ import {
   ShopProfile,
 } from '@/lib/dashboard-api';
 import { formatDisplayId, formatInr } from '@/lib/orders-api';
+import { unregisterShopPushBestEffort } from '@/lib/shop-push-registration';
 import { wipeShopSession } from '@/lib/session';
 
 const logo = require('@/assets/images/login/logo.png');
@@ -94,6 +95,7 @@ export default function SettingsScreen() {
         // OTP leftover only; shop login is token-based.
       }
 
+      await unregisterShopPushBestEffort();
       const cleared = await wipeShopSession();
       if (!cleared) {
         setLogoutError('Could not clear your session. Please try again.');
@@ -339,10 +341,9 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flexShrink: 1,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.primary,
   },
   headerActions: {
@@ -375,10 +376,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.textMuted,
   },
   openPillText: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
-    fontWeight: typography.weights.medium,
+    fontFamily: typography.fonts.medium,
     letterSpacing: 0,
     color: colors.success,
     includeFontPadding: false,
@@ -401,10 +401,9 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   pageTitle: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.heading,
     lineHeight: typography.lineHeights.heading,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     letterSpacing: typography.letterSpacing.heading,
     color: colors.heading,
   },
@@ -426,21 +425,19 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     flex: 1,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.heading,
   },
   viewAll: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.primary,
   },
   emptyHint: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.textSecondary,
@@ -453,17 +450,16 @@ const styles = StyleSheet.create({
   paymentRef: {
     flex: 1,
     minWidth: 0,
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.heading,
   },
   paymentAmount: {
     flexShrink: 0,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.heading,
   },
   paymentStatusPill: {
@@ -480,10 +476,9 @@ const styles = StyleSheet.create({
   },
   paymentStatus: {
     flexShrink: 0,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
-    fontWeight: typography.weights.medium,
+    fontFamily: typography.fonts.medium,
     letterSpacing: 0,
     color: colors.success,
     includeFontPadding: false,
@@ -502,13 +497,13 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   fieldLabel: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
     color: colors.textSecondary,
   },
   fieldValue: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.heading,
@@ -523,10 +518,9 @@ const styles = StyleSheet.create({
   },
   menuLabel: {
     flex: 1,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.heading,
   },
   bankCard: {
@@ -534,21 +528,19 @@ const styles = StyleSheet.create({
   },
   bankTitle: {
     flex: 1,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.white,
   },
   bankName: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.white,
   },
   bankMeta: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.overlayHeroText,
@@ -562,14 +554,13 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   dangerTitle: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.error,
   },
   dangerHint: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
     color: colors.textSecondary,
@@ -600,14 +591,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
   },
   modalTitle: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.heading,
   },
   bannerText: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.error,
@@ -620,7 +610,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logoutLabel: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.input,
     color: colors.white,
   },
@@ -630,7 +620,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cancelLabel: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.input,
     color: colors.textSecondary,
   },

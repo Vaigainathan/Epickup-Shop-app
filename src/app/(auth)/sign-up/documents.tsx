@@ -409,10 +409,9 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: colors.heading,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
   },
   scrollContent: {
     padding: spacing.screen,
@@ -424,24 +423,22 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     color: colors.heading,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.heading,
     lineHeight: typography.lineHeights.heading,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     letterSpacing: typography.letterSpacing.heading,
   },
   heroBody: {
     color: colors.textSecondary,
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
   },
   routeMessage: {
     color: colors.primary,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.medium,
+    fontFamily: typography.fonts.medium,
   },
   card: {
     backgroundColor: colors.surface,
@@ -475,20 +472,18 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     color: colors.heading,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
   },
   mutedTitle: {
     color: colors.textMuted,
   },
   cardOverline: {
     color: colors.textSecondary,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
-    fontWeight: typography.weights.medium,
+    fontFamily: typography.fonts.medium,
     letterSpacing: typography.letterSpacing.label,
   },
   well: {
@@ -514,28 +509,25 @@ const styles = StyleSheet.create({
   },
   wellLabel: {
     color: colors.primary,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     letterSpacing: typography.letterSpacing.button,
     textAlign: 'center',
   },
   wellHint: {
     color: colors.textSecondary,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
-    fontWeight: typography.weights.medium,
+    fontFamily: typography.fonts.medium,
     letterSpacing: typography.letterSpacing.label,
     textAlign: 'center',
   },
   notApplicableLabel: {
     color: colors.textMuted,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.medium,
+    fontFamily: typography.fonts.medium,
     textAlign: 'center',
   },
   thumbnail: {
@@ -563,16 +555,15 @@ const styles = StyleSheet.create({
   cardErrorText: {
     flex: 1,
     color: colors.error,
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
   },
   retryLabel: {
     color: colors.primary,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
   },
   trust: {
     flexDirection: 'row',
@@ -585,10 +576,9 @@ const styles = StyleSheet.create({
   trustText: {
     flex: 1,
     color: colors.textSecondary,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
-    fontWeight: typography.weights.medium,
+    fontFamily: typography.fonts.medium,
     letterSpacing: typography.letterSpacing.label,
   },
   footer: {
@@ -618,10 +608,9 @@ const styles = StyleSheet.create({
   },
   continueText: {
     color: colors.white,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     letterSpacing: typography.letterSpacing.button,
   },
   continueArrow: {
@@ -653,10 +642,9 @@ const styles = StyleSheet.create({
   modalTitle: {
     marginBottom: spacing.md,
     color: colors.heading,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
   },
   option: {
     minHeight: 48,
@@ -664,7 +652,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   optionText: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.input,
     lineHeight: typography.lineHeights.input,
     color: colors.heading,

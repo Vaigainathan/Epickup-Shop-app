@@ -166,10 +166,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   navTitle: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.heading,
   },
   list: {
@@ -202,14 +201,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.overlayPrimary,
   },
   date: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.heading,
   },
   ref: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
     letterSpacing: typography.letterSpacing.label,
@@ -222,10 +220,9 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   amount: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.bold,
+    fontFamily: typography.fonts.bold,
     color: colors.heading,
   },
   statusPill: {
@@ -242,10 +239,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.overlayPrimary,
   },
   statusText: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
-    fontWeight: typography.weights.medium,
+    fontFamily: typography.fonts.medium,
     letterSpacing: 0,
     color: colors.success,
     includeFontPadding: false,
@@ -263,15 +259,14 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   emptyTitle: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.heading,
     textAlign: 'center',
   },
   emptyBody: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.textSecondary,

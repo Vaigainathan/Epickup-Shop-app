@@ -331,10 +331,10 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
-  },
+},
   flex: {
     flex: 1,
-  },
+},
   header: {
     height: 56,
     flexDirection: 'row',
@@ -344,33 +344,32 @@ const styles = StyleSheet.create({
     backgroundColor: colors.overlayHeader,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.tintSoft,
-  },
+},
   backButton: {
     width: 40,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-  },
+},
   backIcon: {
     color: colors.heading,
     fontSize: 34,
     lineHeight: 36,
-  },
+},
   headerBrand: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-  },
+},
   headerLogo: {
     width: 24,
     height: 24,
-  },
+},
   headerTitle: {
     color: colors.heading,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
   },
   scrollContent: {
     padding: spacing.screen,
@@ -389,41 +388,38 @@ const styles = StyleSheet.create({
   },
   heroOverline: {
     color: colors.heroText,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
-    fontWeight: typography.weights.medium,
+    fontFamily: typography.fonts.medium,
     letterSpacing: typography.letterSpacing.label,
   },
   heroTitle: {
     marginTop: spacing.sm,
     color: colors.heroText,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
   },
   heroBody: {
     marginTop: spacing.xs,
     maxWidth: 280,
     color: colors.overlayHeroText,
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
   },
   form: {
     gap: spacing.md,
-  },
+},
   field: {
     gap: spacing.xs,
-  },
+},
   label: {
     marginLeft: spacing.xs,
     color: colors.textSecondary,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
-    fontWeight: typography.weights.medium,
+    fontFamily: typography.fonts.medium,
     letterSpacing: typography.letterSpacing.label,
   },
   input: {
@@ -434,7 +430,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: colors.white,
     color: colors.heading,
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.input,
   },
   inputError: {
@@ -443,29 +439,28 @@ const styles = StyleSheet.create({
   helperText: {
     marginLeft: spacing.xs,
     color: colors.textSecondary,
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.caption,
     fontStyle: 'italic',
   },
   errorText: {
     marginLeft: spacing.xs,
     color: colors.error,
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
   },
   successText: {
     marginLeft: spacing.xs,
     color: colors.success,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
-    fontWeight: typography.weights.medium,
+    fontFamily: typography.fonts.medium,
   },
   upiRow: {
     flexDirection: 'row',
     gap: spacing.sm,
-  },
+},
   upiInput: {
     flex: 1,
     height: 48,
@@ -475,7 +470,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: colors.white,
     color: colors.heading,
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.input,
   },
   verifyButton: {
@@ -491,9 +486,8 @@ const styles = StyleSheet.create({
   },
   verifyText: {
     color: colors.white,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
   },
   infoCard: {
     minHeight: 96,
@@ -502,7 +496,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.md,
     backgroundColor: colors.overlayTrust,
-  },
+},
   infoIcon: {
     width: 40,
     height: 40,
@@ -510,26 +504,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 9999,
     backgroundColor: colors.accentSoft,
-  },
+},
   infoIconText: {
     color: colors.success,
     fontSize: 24,
-  },
+},
   infoCopy: {
     flex: 1,
-  },
+},
   infoTitle: {
     color: colors.success,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     letterSpacing: typography.letterSpacing.label,
   },
   infoText: {
     marginTop: spacing.xs,
     color: colors.success,
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
     letterSpacing: typography.letterSpacing.label,
@@ -537,7 +530,7 @@ const styles = StyleSheet.create({
   },
   submitError: {
     color: colors.error,
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
     textAlign: 'center',
@@ -545,10 +538,9 @@ const styles = StyleSheet.create({
   routeMessage: {
     paddingHorizontal: spacing.sm,
     color: colors.primary,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.medium,
+    fontFamily: typography.fonts.medium,
     textAlign: 'center',
   },
   submitButton: {
@@ -573,14 +565,14 @@ const styles = StyleSheet.create({
   },
   submitText: {
     color: colors.white,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     letterSpacing: typography.letterSpacing.button,
   },
   submitArrow: {
     color: colors.white,
     fontSize: 20,
-  },
+    fontFamily: typography.fonts.regular,
+},
 });

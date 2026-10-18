@@ -134,9 +134,8 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: colors.heading,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
   },
   successArea: {
     alignItems: 'center',
@@ -160,7 +159,7 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 70,
     lineHeight: 78,
-    fontWeight: typography.weights.bold,
+    fontFamily: typography.fonts.bold,
   },
   progress: {
     flexDirection: 'row',
@@ -193,10 +192,9 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.heading,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.heading,
     lineHeight: typography.lineHeights.heading,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     letterSpacing: typography.letterSpacing.heading,
     textAlign: 'center',
   },
@@ -204,7 +202,7 @@ const styles = StyleSheet.create({
     maxWidth: 300,
     marginTop: spacing.sm,
     color: colors.textSecondary,
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.input,
     lineHeight: typography.lineHeights.input,
     textAlign: 'center',
@@ -230,26 +228,24 @@ const styles = StyleSheet.create({
   statusMark: {
     color: colors.success,
     fontSize: 24,
-    fontWeight: typography.weights.bold,
+    fontFamily: typography.fonts.bold,
   },
   statusCopy: {
     flex: 1,
   },
   statusOverline: {
     color: colors.success,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
-    fontWeight: typography.weights.medium,
+    fontFamily: typography.fonts.medium,
     letterSpacing: typography.letterSpacing.label,
   },
   statusText: {
     marginTop: spacing.xs,
     color: colors.heading,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
   },
   features: {
     width: '100%',
@@ -269,10 +265,9 @@ const styles = StyleSheet.create({
   featureLabel: {
     marginTop: spacing.xs,
     color: colors.textSecondary,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
-    fontWeight: typography.weights.medium,
+    fontFamily: typography.fonts.medium,
     letterSpacing: typography.letterSpacing.label,
   },
   checkButton: {
@@ -288,9 +283,8 @@ const styles = StyleSheet.create({
   },
   checkButtonText: {
     color: colors.primary,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
   },
   pressed: {
     opacity: 0.85,
@@ -298,12 +292,12 @@ const styles = StyleSheet.create({
   supportText: {
     marginTop: spacing.lg,
     color: colors.textSecondary,
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
   },
   supportLink: {
     color: colors.primary,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
   },
 });

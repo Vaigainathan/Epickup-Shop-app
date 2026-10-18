@@ -600,16 +600,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   backIcon: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: 28,
     lineHeight: 32,
     color: colors.heading,
   },
   headerTitle: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.heading,
   },
   content: {
@@ -645,10 +644,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.overlayPrimary,
   },
   stockText: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
-    fontWeight: typography.weights.medium,
+    fontFamily: typography.fonts.medium,
     letterSpacing: typography.letterSpacing.label,
     color: colors.success,
   },
@@ -656,25 +654,22 @@ const styles = StyleSheet.create({
     color: colors.error,
   },
   name: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.heading,
     lineHeight: typography.lineHeights.heading,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     letterSpacing: typography.letterSpacing.heading,
     color: colors.heading,
   },
   price: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.primary,
   },
   description: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.regular,
+    fontFamily: typography.fonts.regular,
     color: colors.textSecondary,
   },
   card: {
@@ -684,29 +679,26 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   cardLabel: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
-    fontWeight: typography.weights.medium,
+    fontFamily: typography.fonts.medium,
     letterSpacing: typography.letterSpacing.label,
     color: colors.textSecondary,
     textTransform: 'uppercase',
   },
   cardValue: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.input,
     lineHeight: typography.lineHeights.input,
-    fontWeight: typography.weights.regular,
+    fontFamily: typography.fonts.regular,
     color: colors.heading,
   },
   variantList: {
     gap: spacing.sm,
   },
   totalStock: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.heading,
   },
   variantRow: {
@@ -716,17 +708,15 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
   variantName: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.heading,
   },
   variantMeta: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.regular,
+    fontFamily: typography.fonts.regular,
     color: colors.textSecondary,
   },
   editButton: {
@@ -741,10 +731,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   editLabel: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.input,
     lineHeight: typography.lineHeights.input,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.primary,
   },
   stockButton: {
@@ -762,10 +751,9 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   stockButtonLabel: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.input,
     lineHeight: typography.lineHeights.input,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.white,
   },
   deleteButton: {
@@ -780,10 +768,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   deleteLabel: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.input,
     lineHeight: typography.lineHeights.input,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.error,
   },
   pressed: {
@@ -815,16 +802,15 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   confirmBody: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.textSecondary,
   },
   confirmTitle: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.heading,
   },
   confirmCancel: {
@@ -841,10 +827,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   confirmDeleteLabel: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.input,
     lineHeight: typography.lineHeights.input,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.white,
   },
   savedBackdrop: {
@@ -862,15 +847,14 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   savedTitle: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.heading,
     textAlign: 'center',
   },
   savedBody: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.textSecondary,
@@ -891,10 +875,9 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     flex: 1,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.heading,
   },
   modalClose: {
@@ -923,10 +906,9 @@ const styles = StyleSheet.create({
   },
   modalProductName: {
     flex: 1,
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.input,
     lineHeight: typography.lineHeights.input,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.heading,
   },
   switchRow: {
@@ -938,14 +920,13 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   switchTitle: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.heading,
   },
   switchHint: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
     color: colors.textSecondary,
@@ -960,10 +941,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   stepperLabel: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
-    fontWeight: typography.weights.medium,
+    fontFamily: typography.fonts.medium,
     letterSpacing: typography.letterSpacing.label,
     color: colors.textSecondary,
     textTransform: 'uppercase',
@@ -993,14 +973,13 @@ const styles = StyleSheet.create({
   stepperValue: {
     minWidth: 48,
     textAlign: 'center',
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.heading,
     lineHeight: typography.lineHeights.heading,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.heading,
   },
   currentLabel: {
-    fontFamily: typography.fontFamily,
+    fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.textMuted,
@@ -1011,10 +990,9 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   bannerText: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
-    fontWeight: typography.weights.medium,
+    fontFamily: typography.fonts.medium,
     color: colors.error,
   },
   modalFooter: {
@@ -1030,10 +1008,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cancelLabel: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.input,
     lineHeight: typography.lineHeights.input,
-    fontWeight: typography.weights.regular,
+    fontFamily: typography.fonts.regular,
     color: colors.textSecondary,
   },
   saveButton: {
@@ -1048,10 +1025,9 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   saveLabel: {
-    fontFamily: typography.fontFamily,
     fontSize: typography.sizes.input,
     lineHeight: typography.lineHeights.input,
-    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.semibold,
     color: colors.white,
   },
 });
