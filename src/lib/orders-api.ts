@@ -395,3 +395,10 @@ export async function cancelShopOrder(id: string, reason: string): Promise<Order
   return postTransition(id, 'cancel', { reason });
 }
 
+export async function markOrderItemsUnavailable(
+  id: string,
+  itemIds: string[],
+): Promise<OrderTransitionResult> {
+  return postTransition(id, 'mark-unavailable', { itemIds });
+}
+

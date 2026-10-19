@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { MarkUnavailableSheet } from '@/components/orders/MarkUnavailableSheet';
+import { ConfirmBottomSheet } from '@/components/payment/ConfirmBottomSheet';
 import { OrderPaymentActions } from '@/components/payment/OrderPaymentActions';
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
@@ -25,6 +27,7 @@ import {
   formatInr,
   formatIstTime,
   itemCount,
+  markOrderItemsUnavailable,
   markOrderReady,
   OrdersApiError,
   ordersErrorMessage,
@@ -34,6 +37,8 @@ import {
   ShopOrder,
   showRefundDuePill,
 } from '@/lib/orders-api';
+import { markableUnavailableItems } from '@/lib/mark-unavailable-selection';
+import { canShopCancelOrder } from '@/lib/shop-order-cancel';
 import { orderNeedsWarningPill } from '@/lib/shop-order-actions';
 
 const CANCEL_REASONS = ['Out of stock', 'Shop closing soon', 'Technical issue', 'Other'] as const;
@@ -96,6 +101,9 @@ export default function OrderDetailsScreen() {
   const [otpInput, setOtpInput] = useState('');
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState<string | null>(null);
+  const [markReadyOpen, setMarkReadyOpen] = useState(false);
+  const [markUnavailableOpen, setMarkUnavailableOpen] = useState(false);
+  const [unavailableError, setUnavailableError] = useState<string | null>(null);
   const load = useCallback(async () => {
     if (!orderId) {
       setError('Order not found.');
@@ -139,8 +147,25 @@ export default function OrderDetailsScreen() {
   }
 
   async function handleMarkReady() {
-    if (!order) return;
+    if (!order || order.stockShortOpen) return;
     await runAction(() => markOrderReady(order.id));
+    setMarkReadyOpen(false);
+  }
+
+  async function handleMarkUnavailable(itemIds: string[]) {
+    if (!order || busy) return;
+    setBusy(true);
+    setUnavailableError(null);
+    setActionError(null);
+    try {
+      const result = await markOrderItemsUnavailable(order.id, itemIds);
+      setOrder(result.order);
+      setMarkUnavailableOpen(false);
+    } catch (actionErr) {
+      setUnavailableError(ordersErrorMessage(actionErr, 'Could not mark items unavailable.'));
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleHandover() {
@@ -212,7 +237,13 @@ export default function OrderDetailsScreen() {
   }
 
   const count = itemCount(order);
-  const showCancel = order.orderStatus === 'preparing' || order.orderStatus === 'ready';
+  const showCancel = canShopCancelOrder(order);
+  const markableItems = markableUnavailableItems(order);
+  const showMarkUnavailable =
+    order.orderStatus === 'preparing' &&
+    markableItems.length > 0 &&
+    (order.stockShortOpen || order.stockShort);
+  const markReadyBlocked = order.stockShortOpen;
   const warningPill = orderNeedsWarningPill(order);
   const received = relativeTime(order.createdAt);
   const statusShort = shopOrderLabelShort(order);
@@ -336,6 +367,11 @@ export default function OrderDetailsScreen() {
             </Text>
           </View>
         ) : null}
+        {order.hasOpenRefund && order.refunds.some((r) => r.reason === 'stock_short') ? (
+          <Text style={styles.refundNote}>
+            Partial refund created — complete it in Refunds due.
+          </Text>
+        ) : null}
 
         {order.orderStatus === 'ready' ? (
           <View style={styles.card}>
@@ -385,15 +421,24 @@ export default function OrderDetailsScreen() {
             <Text style={styles.cardEyebrow}>ORDER ITEMS ({count})</Text>
           </View>
           {order.items.map((item, index) => (
-            <View key={`${item.productId ?? 'item'}-${index}`} style={styles.itemRow}>
+            <View
+              key={item.id ?? `${item.productId ?? 'item'}-${index}`}
+              style={[styles.itemRow, item.unavailable && styles.itemUnavailable]}>
               <View style={styles.itemIcon}>
                 <MaterialCommunityIcons name="package-variant" size={22} color={colors.primary} />
               </View>
               <View style={styles.flex}>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemMeta}>Qty: {item.qty}</Text>
+                <Text style={[styles.itemName, item.unavailable && styles.itemNameMuted]}>
+                  {item.name}
+                </Text>
+                <Text style={styles.itemMeta}>
+                  Qty: {item.qty}
+                  {item.unavailable ? ' · Unavailable' : ''}
+                </Text>
               </View>
-              <Text style={styles.itemPrice}>{formatInr(item.price)}</Text>
+              <Text style={[styles.itemPrice, item.unavailable && styles.itemNameMuted]}>
+                {formatInr(item.price)}
+              </Text>
             </View>
           ))}
         </View>
@@ -434,19 +479,37 @@ export default function OrderDetailsScreen() {
           onRefundSent={load}
         />
 
+        {showMarkUnavailable ? (
+          <Pressable
+            accessibilityRole="button"
+            disabled={busy}
+            onPress={() => {
+              setUnavailableError(null);
+              setMarkUnavailableOpen(true);
+            }}
+            style={({ pressed }) => [styles.secondaryAction, busy && styles.disabled, pressed && styles.pressed]}>
+            <Text style={styles.secondaryActionLabel}>Mark unavailable items</Text>
+          </Pressable>
+        ) : null}
+
         {order.orderStatus === 'preparing' ? (
           <View style={styles.actions}>
             <Pressable
               accessibilityRole="button"
-              disabled={busy}
-              onPress={handleMarkReady}
-              style={({ pressed }) => [styles.primary, busy && styles.disabled, pressed && styles.pressed]}>
-              {busy ? (
-                <ActivityIndicator color={colors.white} />
-              ) : (
-                <Text style={styles.primaryLabel}>Mark Ready for Pickup</Text>
-              )}
+              disabled={busy || markReadyBlocked}
+              onPress={() => setMarkReadyOpen(true)}
+              style={({ pressed }) => [
+                styles.primary,
+                (busy || markReadyBlocked) && styles.disabled,
+                pressed && styles.pressed,
+              ]}>
+              <Text style={styles.primaryLabel}>Mark Ready for Pickup</Text>
             </Pressable>
+            {markReadyBlocked ? (
+              <Text style={styles.blockedHint}>
+                Resolve stock short before marking ready.
+              </Text>
+            ) : null}
           </View>
         ) : null}
 
@@ -491,7 +554,8 @@ export default function OrderDetailsScreen() {
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>Cancel Order?</Text>
             <Text style={styles.modalBody}>
-              Please select a reason for cancellation to notify the customer.
+              Please select a reason for cancellation to notify the customer. If payment was
+              confirmed, a full refund will be created for the customer.
             </Text>
             {CANCEL_REASONS.map((reason) => (
               <Pressable
@@ -526,6 +590,25 @@ export default function OrderDetailsScreen() {
           </View>
         </View>
       </Modal>
+
+      <ConfirmBottomSheet
+        visible={markReadyOpen}
+        title="Mark ready for pickup?"
+        body="The customer and delivery partner will be notified. After this, the customer can't cancel the order."
+        primaryLabel="Mark ready"
+        onPrimary={handleMarkReady}
+        onClose={() => !busy && setMarkReadyOpen(false)}
+        busy={busy}
+      />
+
+      <MarkUnavailableSheet
+        visible={markUnavailableOpen}
+        order={order}
+        busy={busy}
+        error={unavailableError}
+        onClose={() => !busy && setMarkUnavailableOpen(false)}
+        onConfirm={handleMarkUnavailable}
+      />
 
     </SafeAreaView>
   );
@@ -782,12 +865,47 @@ const styles = StyleSheet.create({
     color: colors.heading,
     backgroundColor: colors.background,
   },
+  refundNote: {
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.sizes.body,
+    lineHeight: typography.lineHeights.body,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+  },
+  secondaryAction: {
+    minHeight: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  secondaryActionLabel: {
+    fontFamily: typography.fonts.semibold,
+    fontSize: typography.sizes.body,
+    color: colors.primary,
+  },
+  blockedHint: {
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.sizes.label,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+  },
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     paddingVertical: spacing.sm,
 },
+  itemUnavailable: {
+    opacity: 0.65,
+  },
+  itemNameMuted: {
+    textDecorationLine: 'line-through',
+    color: colors.textMuted,
+  },
   itemIcon: {
     width: 64,
     height: 64,

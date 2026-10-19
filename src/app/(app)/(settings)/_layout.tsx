@@ -7,6 +7,7 @@ export default function SettingsLayout() {
     <LocationPickerProvider>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
+        <Stack.Screen name="storefront" />
         <Stack.Screen name="payment-history" />
         <Stack.Screen name="business-profile" />
         <Stack.Screen

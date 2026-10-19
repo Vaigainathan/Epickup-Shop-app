@@ -15,12 +15,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { UpiRegisteredNameSheet } from '@/components/settings/UpiRegisteredNameSheet';
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
 import {
   DashboardApiError,
   fetchShopProfile,
   updateShopBankDetails,
+  updateShopUpiRegisteredName,
   verifyShopSettingsUpi,
 } from '@/lib/dashboard-api';
 
@@ -72,6 +74,11 @@ export default function BankDetailsScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [upiRegisteredName, setUpiRegisteredName] = useState('');
+  const [upiNameVerified, setUpiNameVerified] = useState(false);
+  const [nameSheetOpen, setNameSheetOpen] = useState(false);
+  const [nameSaving, setNameSaving] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
 
   const normalizedIfsc = useMemo(() => normalizeIfsc(ifscCode), [ifscCode]);
   const normalizedUpi = useMemo(() => normalizeUpi(upiId), [upiId]);
@@ -81,7 +88,7 @@ export default function BankDetailsScreen() {
     normalizedUpi &&
       ((normalizedUpi === initialUpi && initialUpiVerified) || verifiedUpiId === normalizedUpi),
   );
-  const busy = verifyingUpi || submitting;
+  const busy = verifyingUpi || submitting || nameSaving;
   const canVerify = Boolean(normalizedUpi && !busy);
   const canConfirm = Boolean(
     accountHolderName.trim() &&
@@ -119,6 +126,8 @@ export default function BankDetailsScreen() {
       setVerificationMessage(null);
       setVerificationError(null);
       setFormError(null);
+      setUpiRegisteredName(profile.upiRegisteredName ?? '');
+      setUpiNameVerified(profile.upiNameVerified);
       setLoaded(true);
     } catch (error) {
       setLoadError(
@@ -152,6 +161,25 @@ export default function BankDetailsScreen() {
     setVerificationMessage(null);
     setVerificationError(null);
     clearSubmitMessages();
+  }
+
+  async function saveUpiRegisteredName(name: string) {
+    setNameSaving(true);
+    setNameError(null);
+    try {
+      const result = await updateShopUpiRegisteredName(name);
+      setUpiRegisteredName(result.upiRegisteredName);
+      setUpiNameVerified(result.verified);
+      setNameSheetOpen(false);
+    } catch (error) {
+      setNameError(
+        error instanceof DashboardApiError
+          ? 'Could not save your registered UPI name.'
+          : 'Could not save your registered UPI name.',
+      );
+    } finally {
+      setNameSaving(false);
+    }
   }
 
   async function verifyUpi() {
@@ -296,6 +324,26 @@ export default function BankDetailsScreen() {
               Update the account and UPI ID used for settlements. Saving requires your current
               password. A new UPI ID must be verified before it goes live.
             </Text>
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.sectionLabel}>Registered UPI name</Text>
+            <Text style={styles.readOnlyValue}>
+              {upiRegisteredName.trim() || '—'}
+            </Text>
+            <Text style={styles.verificationBadge}>
+              {upiNameVerified ? 'Verified' : 'Not verified'}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              disabled={busy || nameSaving}
+              onPress={() => {
+                setNameError(null);
+                setNameSheetOpen(true);
+              }}
+              style={({ pressed }) => [styles.editNameBtn, pressed && styles.pressed]}>
+              <Text style={styles.editNameLabel}>Edit registered name</Text>
+            </Pressable>
           </View>
 
           <View style={styles.form}>
@@ -526,6 +574,15 @@ export default function BankDetailsScreen() {
         </View>
       </Modal>
 
+      <UpiRegisteredNameSheet
+        visible={nameSheetOpen}
+        initialName={upiRegisteredName}
+        busy={nameSaving}
+        error={nameError}
+        onClose={() => !nameSaving && setNameSheetOpen(false)}
+        onSave={saveUpiRegisteredName}
+      />
+
       <Modal visible={savedOpen} transparent animationType="fade">
         <View style={styles.savedBackdrop}>
           <View style={styles.savedCard}>
@@ -610,6 +667,38 @@ const styles = StyleSheet.create({
     fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: spacing.md,
+    gap: spacing.sm,
+    marginHorizontal: spacing.screen,
+    marginBottom: spacing.md,
+  },
+  sectionLabel: {
+    fontFamily: typography.fonts.semibold,
+    fontSize: typography.sizes.body,
+    color: colors.heading,
+  },
+  readOnlyValue: {
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.sizes.input,
+    color: colors.heading,
+  },
+  verificationBadge: {
+    fontFamily: typography.fonts.medium,
+    fontSize: typography.sizes.label,
+    color: colors.textSecondary,
+  },
+  editNameBtn: {
+    minHeight: 48,
+    justifyContent: 'center',
+  },
+  editNameLabel: {
+    fontFamily: typography.fonts.semibold,
+    fontSize: typography.sizes.body,
+    color: colors.primary,
   },
   form: {
     gap: spacing.lg,

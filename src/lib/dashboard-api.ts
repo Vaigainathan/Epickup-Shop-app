@@ -1,4 +1,5 @@
 import { apiUrl } from '@/lib/api';
+import { parseTimestamp } from '@/lib/shop-order-types';
 import { getSessionToken } from '@/lib/session';
 
 type JsonRecord = Record<string, unknown>;
@@ -24,6 +25,11 @@ export type ShopProfile = {
   shopName: string;
   shopType: string | null;
   isOpen: boolean;
+  isOpenNow: boolean;
+  opensAt: Date | null;
+  closesAt: Date | null;
+  upiRegisteredName: string | null;
+  upiNameVerified: boolean;
   name: string | null;
   email: string | null;
   phone: string | null;
@@ -262,11 +268,19 @@ function parseShopProfile(body: JsonRecord | null): ShopProfile {
   let ifsc: string | null = null;
   let upiId: string | null = null;
   let upiVerified: boolean | null = null;
+  let isOpenNow: boolean | null = null;
+  let opensAt: Date | null = null;
+  let closesAt: Date | null = null;
+  let upiRegisteredName: string | null = null;
+  let upiNameVerified: boolean | null = null;
 
   for (const record of records) {
     shopName = shopName ?? readString(record, ['shopName']);
     shopType = shopType ?? readString(record, ['shopType']);
     isOpen = isOpen ?? readBoolean(record, ['isOpen']);
+    isOpenNow = isOpenNow ?? readBoolean(record, ['isOpenNow']);
+    opensAt = opensAt ?? parseTimestamp(record.opensAt);
+    closesAt = closesAt ?? parseTimestamp(record.closesAt);
     if (record !== shop) {
       name = name ?? readString(record, ['name']);
       email = email ?? readString(record, ['email']);
@@ -305,12 +319,21 @@ function parseShopProfile(body: JsonRecord | null): ShopProfile {
     ifsc = ifsc ?? readString(record, ['ifsc', 'ifscCode']);
     upiId = upiId ?? readString(record, ['upiId', 'upi']);
     upiVerified = upiVerified ?? readBoolean(record, ['upiVerified', 'isUpiVerified']);
+    upiRegisteredName =
+      upiRegisteredName ?? readString(record, ['upiRegisteredName', 'registeredUpiName']);
+    upiNameVerified =
+      upiNameVerified ?? readBoolean(record, ['upiNameVerified', 'upiRegisteredNameVerified']);
   }
 
   return {
     shopName: shopName ?? '',
     shopType,
     isOpen: isOpen ?? false,
+    isOpenNow: isOpenNow ?? false,
+    opensAt,
+    closesAt,
+    upiRegisteredName,
+    upiNameVerified: upiNameVerified ?? false,
     name: nameIsPhoneNumber(name, phone) ? null : name,
     email,
     phone,
@@ -411,6 +434,32 @@ export async function verifyShopSettingsUpi(upiId: string): Promise<void> {
     },
     'Could not verify this UPI ID.',
   );
+}
+
+export type UpiRegisteredNameUpdateResult = {
+  upiRegisteredName: string;
+  verified: boolean;
+};
+
+export async function updateShopUpiRegisteredName(
+  upiRegisteredName: string,
+): Promise<UpiRegisteredNameUpdateResult> {
+  const body = await requestJson(
+    '/api/shop/bank/upi-name',
+    {
+      method: 'PUT',
+      body: JSON.stringify({ upiRegisteredName }),
+    },
+    'Could not save your registered UPI name.',
+  );
+  const data = nestedData(body) ?? body;
+  const record = asRecord(data) ?? {};
+  const name =
+    readString(record, ['upiRegisteredName']) ??
+    readString(asRecord(record.bank), ['upiRegisteredName']) ??
+    upiRegisteredName;
+  const verified = readBoolean(record, ['verified']) ?? readBoolean(record, ['upiNameVerified']) ?? false;
+  return { upiRegisteredName: name, verified };
 }
 
 export async function updateShopBankDetails(input: ShopBankDetailsUpdateInput): Promise<void> {

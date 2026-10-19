@@ -30,6 +30,7 @@ import {
   showRefundDuePill,
 } from '@/lib/orders-api';
 import { subscribeOrdersRefresh } from '@/lib/orders-refresh';
+import { formatShopOpenIndicator } from '@/lib/shop-open-indicator';
 import { orderNeedsWarningPill } from '@/lib/shop-order-actions';
 
 const logo = require('@/assets/images/login/logo.png');
@@ -88,6 +89,9 @@ export default function OrdersScreen() {
   const [filter, setFilter] = useState<OrdersListFilter>(() => paramStatus(params.status));
   const [orders, setOrders] = useState<ShopOrder[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [isOpenNow, setIsOpenNow] = useState(false);
+  const [opensAt, setOpensAt] = useState<Date | null>(null);
+  const [closesAt, setClosesAt] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -102,7 +106,12 @@ export default function OrdersScreen() {
         fetchShopProfile().catch(() => null),
       ]);
       setOrders(nextOrders);
-      if (profile) setIsOpen(profile.isOpen);
+      if (profile) {
+        setIsOpen(profile.isOpen);
+        setIsOpenNow(profile.isOpenNow);
+        setOpensAt(profile.opensAt);
+        setClosesAt(profile.closesAt);
+      }
     } catch (loadError) {
       setError(
         loadError instanceof OrdersApiError || loadError instanceof DashboardApiError
@@ -167,6 +176,12 @@ export default function OrdersScreen() {
 
   const empty = emptyCopy(filter);
   const listEmpty = visible.length === 0;
+  const openIndicator = formatShopOpenIndicator({
+    isOpen,
+    isOpenNow,
+    opensAt,
+    closesAt,
+  });
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -179,8 +194,10 @@ export default function OrdersScreen() {
         </View>
         <View style={[styles.openPill, !isOpen && styles.openPillClosed]}>
           <View style={[styles.openDot, !isOpen && styles.openDotClosed]} />
-          <Text style={[styles.openPillText, !isOpen && styles.openPillTextClosed]}>
-            {isOpen ? 'Open' : 'Closed'}
+          <Text
+            numberOfLines={2}
+            style={[styles.openPillText, !isOpen && styles.openPillTextClosed]}>
+            {openIndicator}
           </Text>
         </View>
       </View>

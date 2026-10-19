@@ -23,6 +23,7 @@ import {
   ShopProfile,
 } from '@/lib/dashboard-api';
 import { formatDisplayId, formatInr } from '@/lib/orders-api';
+import { formatShopOpenIndicator } from '@/lib/shop-open-indicator';
 import { unregisterShopPushBestEffort } from '@/lib/shop-push-registration';
 import { wipeShopSession } from '@/lib/session';
 
@@ -137,6 +138,14 @@ export default function SettingsScreen() {
 
   const maskedUpi = profile.upiId ? maskUpi(profile.upiId) : '—';
   const last4 = profile.accountNumberLast4 ? `•••• ${profile.accountNumberLast4}` : '—';
+  const openIndicator = formatShopOpenIndicator({
+    isOpen: profile.isOpen,
+    isOpenNow: profile.isOpenNow,
+    opensAt: profile.opensAt,
+    closesAt: profile.closesAt,
+  });
+  const registeredName = profile.upiRegisteredName?.trim() || '—';
+  const upiVerifiedLabel = profile.upiNameVerified ? 'Verified' : 'Not verified';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -150,8 +159,10 @@ export default function SettingsScreen() {
         <View style={styles.headerActions}>
           <View style={[styles.openPill, !profile.isOpen && styles.openPillClosed]}>
             <View style={[styles.openDot, !profile.isOpen && styles.openDotClosed]} />
-            <Text style={[styles.openPillText, !profile.isOpen && styles.openPillTextClosed]}>
-              {profile.isOpen ? 'Open' : 'Closed'}
+            <Text
+              numberOfLines={2}
+              style={[styles.openPillText, !profile.isOpen && styles.openPillTextClosed]}>
+              {openIndicator}
             </Text>
           </View>
           <Pressable
@@ -208,6 +219,18 @@ export default function SettingsScreen() {
 
         <Pressable
           accessibilityRole="button"
+          onPress={() => router.push('/(app)/(settings)/storefront' as Href)}
+          style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
+          <View style={styles.rowHeader}>
+            <MaterialCommunityIcons name="storefront" size={20} color={colors.heading} />
+            <Text style={styles.cardTitle}>Storefront</Text>
+            <MaterialCommunityIcons name="chevron-right" size={20} color={colors.heading} />
+          </View>
+          <Text style={styles.storefrontHint}>Photo, tagline, and weekly opening hours</Text>
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
           onPress={() => router.push('/(app)/(settings)/business-profile' as Href)}
           style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
           <View style={styles.rowHeader}>
@@ -242,6 +265,8 @@ export default function SettingsScreen() {
           <Text style={styles.bankMeta}>Account {last4}</Text>
           <Text style={styles.bankMeta}>IFSC {displayValue(profile.ifsc)}</Text>
           <Text style={styles.bankMeta}>UPI {maskedUpi}</Text>
+          <Text style={styles.bankMeta}>Registered name {registeredName}</Text>
+          <Text style={styles.bankMeta}>UPI name {upiVerifiedLabel}</Text>
         </Pressable>
 
         <Pressable
@@ -437,6 +462,12 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   emptyHint: {
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.sizes.body,
+    lineHeight: typography.lineHeights.body,
+    color: colors.textSecondary,
+  },
+  storefrontHint: {
     fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,

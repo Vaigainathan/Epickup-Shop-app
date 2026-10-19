@@ -23,6 +23,7 @@ import {
   updateShopStatus,
 } from '@/lib/dashboard-api';
 import { fetchRefundsDueCount } from '@/lib/refunds-api';
+import { formatShopOpenIndicator } from '@/lib/shop-open-indicator';
 
 const logo = require('@/assets/images/login/logo.png');
 
@@ -39,6 +40,9 @@ function formatEarnings(amount: number) {
 export default function DashboardScreen() {
   const [shopName, setShopName] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const [isOpenNow, setIsOpenNow] = useState(false);
+  const [opensAt, setOpensAt] = useState<Date | null>(null);
+  const [closesAt, setClosesAt] = useState<Date | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [productCount, setProductCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -61,6 +65,9 @@ export default function DashboardScreen() {
       ]);
       setShopName(profile.shopName);
       setIsOpen(profile.isOpen);
+      setIsOpenNow(profile.isOpenNow);
+      setOpensAt(profile.opensAt);
+      setClosesAt(profile.closesAt);
       setStats(nextStats);
       setProductCount(products.length);
       setRefundsDueCount(refundsCount);
@@ -144,6 +151,12 @@ export default function DashboardScreen() {
   const isFirstTime = productCount === 0;
   const canTurnOn = productCount > 0;
   const switchDisabled = statusSaving || (!canTurnOn && !isOpen);
+  const openIndicator = formatShopOpenIndicator({
+    isOpen,
+    isOpenNow,
+    opensAt,
+    closesAt,
+  });
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -157,8 +170,10 @@ export default function DashboardScreen() {
         <View style={styles.headerActions}>
           <View style={[styles.openPill, !isOpen && styles.openPillClosed]}>
             <View style={[styles.openDot, !isOpen && styles.openDotClosed]} />
-            <Text style={[styles.openPillText, !isOpen && styles.openPillTextClosed]}>
-              {isOpen ? 'Open' : 'Closed'}
+            <Text
+              numberOfLines={2}
+              style={[styles.openPillText, !isOpen && styles.openPillTextClosed]}>
+              {openIndicator}
             </Text>
           </View>
           <Pressable
@@ -228,7 +243,7 @@ export default function DashboardScreen() {
             <View style={styles.statusHeader}>
               <View style={styles.flex}>
                 <Text style={styles.heroEyebrow}>CURRENT STATUS</Text>
-                <Text style={styles.heroTitle}>{isOpen ? 'Store is Open' : 'Store is Closed'}</Text>
+                <Text style={styles.heroTitle}>Store status</Text>
               </View>
               <Switch
                 value={isOpen}
@@ -239,11 +254,7 @@ export default function DashboardScreen() {
                 ios_backgroundColor={colors.border}
               />
             </View>
-            <Text style={styles.heroBody}>
-              {isOpen
-                ? 'Accepting new pickup orders.'
-                : 'Not accepting new orders right now.'}
-            </Text>
+            <Text style={styles.heroBody}>{openIndicator}</Text>
           </View>
         )}
 

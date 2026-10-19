@@ -30,11 +30,14 @@ export const KNOWN_PAYMENT_STATUSES = [
 export type ShopPaymentStatus = (typeof KNOWN_PAYMENT_STATUSES)[number];
 
 export type ShopOrderItem = {
+  /** Line item id for mark-unavailable `itemIds` (API field: `id`). */
+  id: string | null;
   productId: string | null;
   variantId: string | null;
   name: string;
   price: number;
   qty: number;
+  unavailable: boolean;
 };
 
 export type ShopOrderDriverInfo = {
@@ -88,6 +91,9 @@ export type ShopOrder = {
   customerName: string | null;
   payerUpiName: string | null;
   customerNote: string | null;
+  delivery: {
+    stage: string | null;
+  };
   stockShort: boolean;
   stockShortOpen: boolean;
   expectedAmount: number | null;
@@ -194,11 +200,13 @@ function parseItem(value: unknown): ShopOrderItem | null {
   const price = readNumber(record, ['price']) ?? 0;
   const qty = readNumber(record, ['qty', 'quantity']) ?? 0;
   return {
+    id: readString(record, ['id']),
     productId: readString(record, ['productId']),
     variantId: readString(record, ['variantId']),
     name,
     price,
     qty,
+    unavailable: readBoolean(record, ['unavailable']),
   };
 }
 
@@ -399,18 +407,51 @@ export function cancelledDetailCopy(order: ShopOrder): string {
   return 'Order was rejected';
 }
 
-export function formatIstTime(date: Date | null): string | null {
-  if (!date) return null;
+const IST_TIMEZONE = 'Asia/Kolkata';
+
+/** 24h hour (0–23) and minute in Asia/Kolkata — numbers only via Intl for engine parity. */
+export function istHourMinute(date: Date): { hour: number; minute: number } | null {
   try {
-    return new Intl.DateTimeFormat('en-IN', {
-      timeZone: 'Asia/Kolkata',
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: IST_TIMEZONE,
       hour: 'numeric',
       minute: '2-digit',
-      hour12: true,
-    }).format(date);
+      hourCycle: 'h23',
+    }).formatToParts(date);
+    let hour: number | null = null;
+    let minute: number | null = null;
+    for (const part of parts) {
+      if (part.type === 'hour') hour = Number(part.value);
+      if (part.type === 'minute') minute = Number(part.value);
+    }
+    if (
+      hour === null ||
+      minute === null ||
+      !Number.isFinite(hour) ||
+      !Number.isFinite(minute) ||
+      hour < 0 ||
+      hour > 23 ||
+      minute < 0 ||
+      minute > 59
+    ) {
+      return null;
+    }
+    return { hour, minute };
   } catch {
     return null;
   }
+}
+
+/** IST clock time as `h:mm AM` / `h:mm PM` (uppercase), identical in Node and Hermes. */
+export function formatIstTime(date: Date | null): string | null {
+  if (!date) return null;
+  const parts = istHourMinute(date);
+  if (!parts) return null;
+  const { hour, minute } = parts;
+  const period = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+  const min = String(minute).padStart(2, '0');
+  return `${hour12}:${min} ${period}`;
 }
 
 export function mergeAwaitingPaymentOrders(batches: ShopOrder[][]): ShopOrder[] {
@@ -452,6 +493,7 @@ export function parseOrder(value: unknown): ShopOrder | null {
   const paymentAmount = readNumber(paymentRecord, ['amount']) ?? itemsTotal;
   const windowRecord = asRecord(record.window);
   const helpRecord = asRecord(record.help);
+  const deliveryRecord = asRecord(record.delivery);
   const refundsRaw = Array.isArray(record.refunds) ? record.refunds : [];
 
   return {
@@ -471,6 +513,9 @@ export function parseOrder(value: unknown): ShopOrder | null {
     customerName: readString(record, ['customerName']),
     payerUpiName: readString(record, ['payerUpiName']),
     customerNote: readString(record, ['customerNote']),
+    delivery: {
+      stage: readString(deliveryRecord, ['stage']),
+    },
     stockShort: readBoolean(record, ['stockShort']),
     stockShortOpen: readBoolean(record, ['stockShortOpen']),
     expectedAmount: readNumber(record, ['expectedAmount']),

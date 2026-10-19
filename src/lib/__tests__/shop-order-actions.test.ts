@@ -25,6 +25,7 @@ function minimalOrder(overrides: Partial<ShopOrder> & { id: string }): ShopOrder
     customerName: null,
     payerUpiName: null,
     customerNote: null,
+    delivery: { stage: null },
     stockShort: false,
     stockShortOpen: false,
     expectedAmount: 100,

@@ -29,6 +29,7 @@ function minimalOrder(overrides: Partial<ShopOrder> & { id: string }): ShopOrder
     customerName: null,
     payerUpiName: null,
     customerNote: null,
+    delivery: { stage: null },
     stockShort: false,
     stockShortOpen: false,
     expectedAmount: 100,
@@ -72,6 +73,18 @@ describe('parseOrder', () => {
     expect(order!.orderStatusKnown).toBe(false);
     expect(order!.orderStatusRaw).toBe('future_status');
     expect(order!.orderStatus).toBeNull();
+  });
+
+  it('parses line item id and unavailable flag', () => {
+    const order = parseOrder({
+      id: 'o3',
+      orderStatus: 'preparing',
+      items: [{ id: 'line-9', name: 'Rice', price: 50, qty: 2, unavailable: true }],
+      delivery: { stage: 'searching' },
+    });
+    expect(order!.items[0].id).toBe('line-9');
+    expect(order!.items[0].unavailable).toBe(true);
+    expect(order!.delivery.stage).toBe('searching');
   });
 
   it('parses with missing optional fields', () => {

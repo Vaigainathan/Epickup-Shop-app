@@ -1,6 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 
-export type PickMediaPurpose = 'product' | 'document';
+export type PickMediaPurpose = 'product' | 'document' | 'storefront';
 
 export type PickedMedia = {
   uri: string;
@@ -17,7 +17,8 @@ export type PickMediaResult =
 function toMedia(asset: ImagePicker.ImagePickerAsset, purpose: PickMediaPurpose): PickedMedia {
   const mimeType = asset.mimeType ?? 'image/jpeg';
   const ext = mimeType.includes('png') ? 'png' : mimeType.includes('webp') ? 'webp' : 'jpg';
-  const prefix = purpose === 'document' ? 'document' : 'product';
+  const prefix =
+    purpose === 'document' ? 'document' : purpose === 'storefront' ? 'storefront' : 'product';
   return {
     uri: asset.uri,
     mimeType,
@@ -31,7 +32,12 @@ function deniedMessage(
   canAskAgain: boolean,
   purpose: PickMediaPurpose,
 ): string {
-  const subject = purpose === 'document' ? 'a document photo' : 'a product photo';
+  const subject =
+    purpose === 'document'
+      ? 'a document photo'
+      : purpose === 'storefront'
+        ? 'a storefront photo'
+        : 'a product photo';
   if (kind === 'camera') {
     return canAskAgain
       ? `Camera permission is needed to take ${subject}.`
@@ -98,6 +104,14 @@ export async function pickProductPhotoFromGallery(): Promise<PickMediaResult> {
 
 export async function pickProductPhotoFromCamera(): Promise<PickMediaResult> {
   return pickImageFromCamera('product');
+}
+
+export async function pickStorefrontPhotoFromGallery(): Promise<PickMediaResult> {
+  return pickImageFromGallery('storefront');
+}
+
+export async function pickStorefrontPhotoFromCamera(): Promise<PickMediaResult> {
+  return pickImageFromCamera('storefront');
 }
 
 export type LocalUploadFile = {
