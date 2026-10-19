@@ -30,6 +30,7 @@ import {
   showRefundDuePill,
 } from '@/lib/orders-api';
 import { subscribeOrdersRefresh } from '@/lib/orders-refresh';
+import { orderNeedsWarningPill } from '@/lib/shop-order-actions';
 
 const logo = require('@/assets/images/login/logo.png');
 const emptyIllustration = require('@/assets/images/orders/empty-orders.png');
@@ -261,6 +262,7 @@ export default function OrdersScreen() {
 function OrderCard({ order, onPress }: { order: ShopOrder; onPress: () => void }) {
   const statusTag = shopOrderLabelShort(order);
   const refundDue = showRefundDuePill(order);
+  const warning = orderNeedsWarningPill(order);
   const done = order.orderStatus === 'completed' || order.orderStatus === 'cancelled';
   const ready = order.orderStatus === 'ready';
   const count = itemCount(order);
@@ -286,6 +288,7 @@ function OrderCard({ order, onPress }: { order: ShopOrder; onPress: () => void }
               order.orderStatus === 'ready' && styles.statusReady,
               order.orderStatus === 'preparing' && styles.statusPreparing,
               order.orderStatus === 'awaiting_payment' && styles.statusAwaiting,
+              warning && styles.statusWarning,
               done && styles.statusDone,
             ]}>
             <Text
@@ -293,6 +296,7 @@ function OrderCard({ order, onPress }: { order: ShopOrder; onPress: () => void }
               style={[
                 styles.statusText,
                 order.orderStatus === 'ready' && styles.statusTextReady,
+                warning && styles.statusTextWarning,
                 done && styles.statusTextDone,
               ]}>
               {statusTag}
@@ -546,6 +550,9 @@ const styles = StyleSheet.create({
   statusAwaiting: {
     backgroundColor: colors.overlayPrimary,
   },
+  statusWarning: {
+    backgroundColor: colors.overlayPrimary,
+  },
   statusPreparing: {
     backgroundColor: colors.tintSoft,
   },
@@ -566,6 +573,9 @@ const styles = StyleSheet.create({
   },
   statusTextReady: {
     color: colors.success,
+  },
+  statusTextWarning: {
+    color: colors.error,
   },
   statusTextDone: {
     color: colors.textMuted,

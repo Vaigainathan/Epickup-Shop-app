@@ -39,6 +39,30 @@ export type OrderTransitionResult = {
 
 export type OrdersListFilter = 'all' | 'awaiting_payment' | 'preparing' | 'ready' | 'completed';
 
+export type ConfirmPaymentPayload = {
+  withinWindowAttested: boolean;
+  fulfil?: boolean;
+  utrLast4?: string;
+  fullUtr?: string;
+};
+
+export type AmountDiffersPayload = {
+  receivedAmount: number;
+  utrLast4?: string;
+  fullUtr?: string;
+};
+
+export type PaymentNotFoundPayload = {
+  utrLast4?: string;
+  fullUtr?: string;
+};
+
+export type PaidCheckPayload = {
+  received: boolean;
+  utrLast4?: string;
+  fullUtr?: string;
+};
+
 export {
   cancelledDetailCopy,
   formatIstTime,
@@ -155,6 +179,8 @@ export function ordersErrorMessage(error: unknown, fallback: string): string {
       return 'This was already submitted. Refresh the order.';
     case 'AMOUNT_MISMATCH':
       return "The refund amount doesn't match what's due. Use the exact amount shown.";
+    case 'VALIDATION':
+      return 'Check the details you entered and try again.';
     case 'REFUND_UTR_REQUIRED':
       return 'Enter the refund UTR and amount to mark this refund sent.';
     case 'RATE_LIMIT_EXCEEDED':
@@ -321,8 +347,32 @@ async function postTransition(id: string, action: string, payload?: JsonRecord):
   return parseTransition(body, fallback);
 }
 
-export async function confirmOrderPayment(id: string): Promise<OrderTransitionResult> {
-  return postTransition(id, 'confirm-payment');
+export async function confirmOrderPayment(
+  id: string,
+  payload: ConfirmPaymentPayload,
+): Promise<OrderTransitionResult> {
+  return postTransition(id, 'confirm-payment', payload as JsonRecord);
+}
+
+export async function reportAmountDiffers(
+  id: string,
+  payload: AmountDiffersPayload,
+): Promise<OrderTransitionResult> {
+  return postTransition(id, 'amount-differs', payload as JsonRecord);
+}
+
+export async function reportPaymentNotFound(
+  id: string,
+  payload: PaymentNotFoundPayload = {},
+): Promise<OrderTransitionResult> {
+  return postTransition(id, 'payment-not-found', payload as JsonRecord);
+}
+
+export async function submitPaidCheck(
+  id: string,
+  payload: PaidCheckPayload,
+): Promise<OrderTransitionResult> {
+  return postTransition(id, 'paid-check', payload as JsonRecord);
 }
 
 export async function rejectShopOrder(id: string): Promise<OrderTransitionResult> {
@@ -345,6 +395,3 @@ export async function cancelShopOrder(id: string, reason: string): Promise<Order
   return postTransition(id, 'cancel', { reason });
 }
 
-export async function markRefundSent(id: string): Promise<OrderTransitionResult> {
-  return postTransition(id, 'refund-sent');
-}

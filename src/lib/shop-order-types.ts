@@ -64,6 +64,11 @@ export type ShopOrderRefund = {
   id: string;
   status: string | null;
   amount: number | null;
+  reason: string | null;
+  dueBy: Date | null;
+  customerUpiId: string | null;
+  refundUtr: string | null;
+  sentAmount: number | null;
 };
 
 export type ShopOrder = {
@@ -254,6 +259,11 @@ function parseRefund(value: unknown): ShopOrderRefund | null {
     id,
     status: readString(record, ['status']),
     amount: readNumber(record, ['amount']),
+    reason: readString(record, ['reason']),
+    dueBy: parseTimestamp(record.dueBy),
+    customerUpiId: readString(record, ['customerUpiId']),
+    refundUtr: readString(record, ['refundUtr']),
+    sentAmount: readNumber(record, ['sentAmount']),
   };
 }
 

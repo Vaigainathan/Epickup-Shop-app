@@ -88,6 +88,7 @@ export default function AppTabsLayout() {
             tabBarIcon: ({ color }) => <TabIcon name="cog-outline" color={color} />,
           }}
         />
+        <Tabs.Screen name="(refunds)" options={{ href: null }} />
       </Tabs>
     </ShopPushProvider>
   );

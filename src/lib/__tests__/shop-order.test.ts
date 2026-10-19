@@ -309,9 +309,17 @@ describe('getPushRoute', () => {
     'balance_not_paid_shop',
   ];
 
-  it.each(orderTypes)('routes %s to order when orderId set', (type: string) => {
+  const refundTypes = ['refund_due', 'refund_overdue', 'balance_not_paid_shop'];
+  const paymentOrderTypes = orderTypes.filter((t) => !refundTypes.includes(t));
+
+  it.each(paymentOrderTypes)('routes %s to order when orderId set', (type: string) => {
     const route = getPushRoute(parsePushData({ type, orderId: 'abc' }));
     expect(route).toEqual({ kind: 'order', orderId: 'abc' });
+  });
+
+  it.each(refundTypes)('routes %s to refunds list when orderId set', (type: string) => {
+    const route = getPushRoute(parsePushData({ type, orderId: 'abc' }));
+    expect(route).toEqual({ kind: 'refunds_list', orderId: 'abc' });
   });
 
   it('unknown type ignored', () => {

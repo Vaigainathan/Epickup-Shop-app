@@ -35,6 +35,15 @@ async function navigateFromPush(data: Record<string, unknown> | undefined): Prom
     router.push('/(app)/(orders)');
     return;
   }
+  if (route.kind === 'refunds_list') {
+    const orderId = route.orderId;
+    if (orderId) {
+      router.push(`/(app)/(refunds)?orderId=${encodeURIComponent(orderId)}`);
+    } else {
+      router.push('/(app)/(refunds)');
+    }
+    return;
+  }
   router.push(`/(app)/(orders)/${encodeURIComponent(route.orderId)}`);
 }
 

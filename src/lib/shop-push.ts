@@ -22,6 +22,7 @@ export type ShopPushData = {
 
 export type PushRoute =
   | { kind: 'order'; orderId: string }
+  | { kind: 'refunds_list'; orderId?: string }
   | { kind: 'orders_list' }
   | { kind: 'ignore' };
 
@@ -57,7 +58,10 @@ export function getPushRoute(data: ShopPushData): PushRoute {
   if (!orderId) {
     return { kind: 'orders_list' };
   }
-  if (ORDER_ACTION_TYPES.has(type) || REFUND_ACTION_TYPES.has(type)) {
+  if (REFUND_ACTION_TYPES.has(type)) {
+    return { kind: 'refunds_list', orderId };
+  }
+  if (ORDER_ACTION_TYPES.has(type)) {
     return { kind: 'order', orderId };
   }
   return { kind: 'ignore' };

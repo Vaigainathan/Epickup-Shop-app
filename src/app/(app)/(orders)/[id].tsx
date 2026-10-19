@@ -13,29 +13,28 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { OrderPaymentActions } from '@/components/payment/OrderPaymentActions';
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
 import {
   cancelShopOrder,
   cancelledDetailCopy,
   confirmOrderHandover,
-  confirmOrderPayment,
   fetchShopOrder,
   formatDisplayId,
   formatInr,
   formatIstTime,
   itemCount,
   markOrderReady,
-  markRefundSent,
   OrdersApiError,
   ordersErrorMessage,
-  rejectShopOrder,
   relativeTime,
   shopOrderLabelDetail,
   shopOrderLabelShort,
   ShopOrder,
   showRefundDuePill,
 } from '@/lib/orders-api';
+import { orderNeedsWarningPill } from '@/lib/shop-order-actions';
 
 const CANCEL_REASONS = ['Out of stock', 'Shop closing soon', 'Technical issue', 'Other'] as const;
 
@@ -97,8 +96,6 @@ export default function OrderDetailsScreen() {
   const [otpInput, setOtpInput] = useState('');
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState<string | null>(null);
-  const [refundOpen, setRefundOpen] = useState(false);
-
   const load = useCallback(async () => {
     if (!orderId) {
       setError('Order not found.');
@@ -122,11 +119,8 @@ export default function OrderDetailsScreen() {
     }, [load]),
   );
 
-  function applyOrder(next: ShopOrder, refundRequired: boolean | null) {
+  function applyOrder(next: ShopOrder, _refundRequired: boolean | null) {
     setOrder(next);
-    if (refundRequired === true || next.payment.status === 'refund_pending') {
-      setRefundOpen(true);
-    }
   }
 
   async function runAction(task: () => Promise<{ order: ShopOrder; refundRequired: boolean | null }>) {
@@ -142,16 +136,6 @@ export default function OrderDetailsScreen() {
     } finally {
       setBusy(false);
     }
-  }
-
-  async function handleConfirmPayment() {
-    if (!order) return;
-    await runAction(() => confirmOrderPayment(order.id));
-  }
-
-  async function handleReject() {
-    if (!order) return;
-    await runAction(() => rejectShopOrder(order.id));
   }
 
   async function handleMarkReady() {
@@ -203,22 +187,6 @@ export default function OrderDetailsScreen() {
     }
   }
 
-  async function handleRefundSent() {
-    if (!order || busy) return;
-    setBusy(true);
-    setActionError(null);
-    try {
-      const result = await markRefundSent(order.id);
-      setRefundOpen(false);
-      setOrder(result.order);
-      router.back();
-    } catch (actionErr) {
-      setActionError(ordersErrorMessage(actionErr, 'Could not mark refund as sent.'));
-    } finally {
-      setBusy(false);
-    }
-  }
-
   if (loading && !order) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -245,8 +213,7 @@ export default function OrderDetailsScreen() {
 
   const count = itemCount(order);
   const showCancel = order.orderStatus === 'preparing' || order.orderStatus === 'ready';
-  const showRefund =
-    refundOpen || order.payment.status === 'refund_pending';
+  const warningPill = orderNeedsWarningPill(order);
   const received = relativeTime(order.createdAt);
   const statusShort = shopOrderLabelShort(order);
   const statusDetail = shopOrderLabelDetail(order);
@@ -277,10 +244,19 @@ export default function OrderDetailsScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.statusRow}>
           <View style={styles.statusTags}>
-            <View style={[styles.statusPill, order.orderStatus === 'ready' && styles.statusPillReady]}>
+            <View
+              style={[
+                styles.statusPill,
+                order.orderStatus === 'ready' && styles.statusPillReady,
+                warningPill && styles.statusPillWarning,
+              ]}>
               <Text
                 numberOfLines={2}
-                style={[styles.statusPillText, order.orderStatus === 'ready' && styles.statusPillTextReady]}>
+                style={[
+                  styles.statusPillText,
+                  order.orderStatus === 'ready' && styles.statusPillTextReady,
+                  warningPill && styles.statusPillTextWarning,
+                ]}>
                 {statusShort}
               </Text>
             </View>
@@ -427,12 +403,16 @@ export default function OrderDetailsScreen() {
             <Text style={styles.totalLabel}>Items (UPI amount)</Text>
             <Text style={styles.totalValue}>{formatInr(order.itemsTotal)}</Text>
           </View>
-          <View style={styles.rowBetween}>
-            <Text style={styles.totalLabel}>Delivery fee (driver, not UPI)</Text>
-            <Text style={styles.totalValue}>{formatInr(order.deliveryFee)}</Text>
-          </View>
+          {order.deliveryFee > 0 ? (
+            <View style={styles.rowBetween}>
+              <Text style={styles.totalLabel}>Delivery fee (driver, not UPI)</Text>
+              <Text style={styles.totalValue}>{formatInr(order.deliveryFee)}</Text>
+            </View>
+          ) : null}
           <Text style={styles.totalHint}>
-            Confirm only the items amount in your UPI app. Delivery fee is collected by the driver.
+            {order.deliveryFee > 0
+              ? 'Confirm only the items amount in your UPI app. Delivery fee is collected by the driver in cash.'
+              : 'Delivery fee is collected in cash by the driver.'}
           </Text>
         </View>
 
@@ -445,28 +425,14 @@ export default function OrderDetailsScreen() {
 
         {actionError ? <Text style={styles.inlineError}>{actionError}</Text> : null}
 
-        {order.orderStatus === 'awaiting_payment' ? (
-          <View style={styles.actions}>
-            <Pressable
-              accessibilityRole="button"
-              disabled={busy}
-              onPress={handleConfirmPayment}
-              style={({ pressed }) => [styles.primary, busy && styles.disabled, pressed && styles.pressed]}>
-              {busy ? (
-                <ActivityIndicator color={colors.white} />
-              ) : (
-                <Text style={styles.primaryLabel}>Confirm Payment Received & Accept Order</Text>
-              )}
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              disabled={busy}
-              onPress={handleReject}
-              style={({ pressed }) => [styles.dangerText, pressed && styles.pressed]}>
-              <Text style={styles.dangerLabel}>Reject Order</Text>
-            </Pressable>
-          </View>
-        ) : null}
+        <OrderPaymentActions
+          order={order}
+          busy={busy}
+          setBusy={setBusy}
+          onOrderUpdated={(next) => setOrder(next)}
+          onActionError={setActionError}
+          onRefundSent={load}
+        />
 
         {order.orderStatus === 'preparing' ? (
           <View style={styles.actions}>
@@ -561,32 +527,6 @@ export default function OrderDetailsScreen() {
         </View>
       </Modal>
 
-      <Modal
-        visible={showRefund && order.payment.status === 'refund_pending'}
-        transparent
-        animationType="slide"
-        onRequestClose={() => undefined}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Refund required</Text>
-            <Text style={styles.modalBody}>
-              This order requires a refund of {formatInr(order.payment.amount)}. Send it in your UPI
-              app
-              {order.payment.customerUpiId ? ` to ${order.payment.customerUpiId}` : ''}
-              , then mark refund sent.
-            </Text>
-            {actionError ? <Text style={styles.inlineError}>{actionError}</Text> : null}
-            <Pressable
-              accessibilityRole="button"
-              disabled={busy}
-              onPress={handleRefundSent}
-              style={({ pressed }) => [styles.primary, busy && styles.disabled, pressed && styles.pressed]}>
-              <Text style={styles.primaryLabel}>{busy ? 'Saving…' : 'Refund Sent'}</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -694,6 +634,9 @@ const styles = StyleSheet.create({
   statusPillReady: {
     backgroundColor: colors.overlayTrust,
   },
+  statusPillWarning: {
+    backgroundColor: colors.overlayPrimary,
+  },
   statusPillText: {
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
@@ -705,6 +648,9 @@ const styles = StyleSheet.create({
   },
   statusPillTextReady: {
     color: colors.success,
+  },
+  statusPillTextWarning: {
+    color: colors.error,
   },
   displayId: {
     flexShrink: 0,

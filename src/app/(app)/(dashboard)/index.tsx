@@ -22,6 +22,7 @@ import {
   fetchShopProfile,
   updateShopStatus,
 } from '@/lib/dashboard-api';
+import { fetchRefundsDueCount } from '@/lib/refunds-api';
 
 const logo = require('@/assets/images/login/logo.png');
 
@@ -44,6 +45,7 @@ export default function DashboardScreen() {
   const [error, setError] = useState<string | null>(null);
   const [statusSaving, setStatusSaving] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [refundsDueCount, setRefundsDueCount] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -51,15 +53,17 @@ export default function DashboardScreen() {
     setStatusError(null);
 
     try {
-      const [profile, nextStats, products] = await Promise.all([
+      const [profile, nextStats, products, refundsCount] = await Promise.all([
         fetchShopProfile(),
         fetchDashboardStats(),
         fetchShopProducts().catch(() => []),
+        fetchRefundsDueCount().catch(() => 0),
       ]);
       setShopName(profile.shopName);
       setIsOpen(profile.isOpen);
       setStats(nextStats);
       setProductCount(products.length);
+      setRefundsDueCount(refundsCount);
     } catch (loadError) {
       setError(
         loadError instanceof DashboardApiError
@@ -107,6 +111,10 @@ export default function DashboardScreen() {
 
   function openSettings() {
     router.push('/(app)/(settings)' as Href);
+  }
+
+  function openRefunds() {
+    router.push('/(app)/(refunds)' as Href);
   }
 
   if (loading && !stats) {
@@ -294,6 +302,13 @@ export default function DashboardScreen() {
               count={stats.ready}
               onPress={() => openOrders('ready')}
             />
+            <OperationRow
+              title="Refunds due"
+              subtitle="Send refunds within 24 hours"
+              count={refundsDueCount}
+              onPress={openRefunds}
+              warn={refundsDueCount > 0}
+            />
           </View>
         )}
       </ScrollView>
@@ -326,9 +341,10 @@ type OperationRowProps = {
   subtitle: string;
   count: number;
   onPress: () => void;
+  warn?: boolean;
 };
 
-function OperationRow({ title, subtitle, count, onPress }: OperationRowProps) {
+function OperationRow({ title, subtitle, count, onPress, warn }: OperationRowProps) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -338,8 +354,8 @@ function OperationRow({ title, subtitle, count, onPress }: OperationRowProps) {
         <Text style={styles.operationTitle}>{title}</Text>
         <Text style={styles.operationSubtitle}>{subtitle}</Text>
       </View>
-      <View style={styles.countBadge}>
-        <Text style={styles.countText}>{count}</Text>
+      <View style={[styles.countBadge, warn && styles.countBadgeWarn]}>
+        <Text style={[styles.countText, warn && styles.countTextWarn]}>{count}</Text>
       </View>
       <MaterialCommunityIcons name="chevron-right" size={20} color={colors.heading} />
     </Pressable>
@@ -742,6 +758,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.sm,
+  },
+  countBadgeWarn: {
+    backgroundColor: colors.overlayPrimary,
+  },
+  countTextWarn: {
+    color: colors.error,
   },
   countText: {
     fontSize: typography.sizes.body,
