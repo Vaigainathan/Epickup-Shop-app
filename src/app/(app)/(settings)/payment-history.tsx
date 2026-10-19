@@ -6,11 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
-import {
-  DashboardApiError,
-  fetchPaymentHistory,
-  PaymentHistoryItem,
-} from '@/lib/dashboard-api';
+import { fetchPaymentHistory, PaymentHistoryItem } from '@/lib/dashboard-api';
+import { paymentHistoryErrorMessage } from '@/lib/payment-history-error-messages';
 import { formatDisplayId, formatInr } from '@/lib/orders-api';
 
 function formatDate(date: Date | null): string {
@@ -34,11 +31,7 @@ export default function PaymentHistoryScreen() {
     try {
       setItems(await fetchPaymentHistory());
     } catch (loadError) {
-      setError(
-        loadError instanceof DashboardApiError
-          ? loadError.message
-          : 'Could not load payment history.',
-      );
+      setError(paymentHistoryErrorMessage(loadError, 'Could not load payment history.'));
     } finally {
       setLoading(false);
     }

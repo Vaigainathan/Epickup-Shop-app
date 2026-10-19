@@ -9,14 +9,15 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppTextInput } from '@/components/AppTextInput';
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
 import { fetchShopType } from '@/lib/auth-api';
+import { documentsErrorMessage } from '@/lib/documents-error-messages';
 import { pickImageFromCamera, pickImageFromGallery, PickedMedia } from '@/lib/pick-media';
 import {
   fetchShopDocumentStatuses,
@@ -106,11 +107,7 @@ export default function ComplianceDocumentsScreen() {
       setFssaiStatus(statuses.fssaiStatus);
       setFssaiExpiry(statuses.fssaiExpiryDate ?? '');
     } catch (error) {
-      setLoadError(
-        error instanceof ShopDocumentsApiError
-          ? error.message
-          : 'Could not load your documents.',
-      );
+      setLoadError(documentsErrorMessage(error, 'Could not load your documents.'));
     } finally {
       setLoading(false);
     }
@@ -384,7 +381,7 @@ function ComplianceCard({
           {expiry ? (
             <View style={styles.expiryField}>
               <Text style={styles.expiryLabel}>FSSAI expiry date (optional)</Text>
-              <TextInput
+              <AppTextInput
                 value={expiry.value}
                 onChangeText={expiry.onChange}
                 placeholder="YYYY-MM-DD"

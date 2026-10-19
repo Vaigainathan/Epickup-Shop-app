@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, spacing, typography } from '@/constants/theme';
+import { onboardingStatusErrorMessage } from '@/lib/onboarding-error-messages';
 import {
   fetchOnboardingStatus,
   hrefForOnboardingStep,
@@ -50,7 +51,9 @@ export default function ResubmitScreen() {
 
       setStatus(nextStatus);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Could not load your application status.');
+      setError(
+        onboardingStatusErrorMessage(loadError, 'Could not load your application status.'),
+      );
     } finally {
       setLoading(false);
     }

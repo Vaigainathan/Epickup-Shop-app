@@ -291,19 +291,24 @@ export async function fetchOnboardingStatus(token: string): Promise<OnboardingSt
   try {
     body = rawText ? JSON.parse(rawText) : null;
   } catch {
-    console.log('[onboarding/status] raw non-JSON response:', rawText);
+    if (__DEV__) {
+      console.log('[onboarding/status] raw non-JSON response:', rawText);
+    }
     throw new Error('Onboarding status returned invalid JSON');
   }
 
-  // Exact payload for debugging mid-onboarding routing (keep until verified).
-  console.log('[onboarding/status] raw JSON:', JSON.stringify(body, null, 2));
+  if (__DEV__) {
+    console.log('[onboarding/status] raw JSON:', JSON.stringify(body, null, 2));
+  }
 
   if (!response.ok) {
     throw new Error(`Onboarding status failed with ${response.status}`);
   }
 
   const parsed = parseOnboardingStatus(body);
-  console.log('[onboarding/status] parsed route decision:', parsed);
+  if (__DEV__) {
+    console.log('[onboarding/status] parsed route decision:', parsed);
+  }
 
   return parsed;
 }
@@ -335,7 +340,9 @@ export async function routeAfterAuthenticatedSession(
     }
     return true;
   } catch (error) {
-    console.log('[onboarding/status] routing failed, falling back to login:', error);
+    if (__DEV__) {
+      console.log('[onboarding/status] routing failed, falling back to login:', error);
+    }
     router.replace('/(auth)/login');
     return false;
   }

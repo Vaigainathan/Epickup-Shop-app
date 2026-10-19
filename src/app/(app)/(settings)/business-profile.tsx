@@ -10,11 +10,11 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppTextInput } from '@/components/AppTextInput';
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
 import {
@@ -23,6 +23,7 @@ import {
   ShopCoordinate,
   updateShopProfile,
 } from '@/lib/dashboard-api';
+import { settingsErrorMessage } from '@/lib/settings-error-messages';
 import { useLocationPicker } from '@/lib/location-picker-context';
 import { SHOP_TYPES } from '@/lib/shop-types';
 
@@ -123,11 +124,7 @@ export default function BusinessProfileScreen() {
       setDraft(next);
       setInitial(next);
     } catch (error) {
-      setLoadError(
-        error instanceof DashboardApiError
-          ? error.message
-          : 'Could not load your business profile.',
-      );
+      setLoadError(settingsErrorMessage(error, 'Could not load your business profile.'));
     } finally {
       setLoading(false);
     }
@@ -190,11 +187,7 @@ export default function BusinessProfileScreen() {
         setPasswordError('That password is incorrect. Your changes were not saved.');
         return;
       }
-      setSubmitError(
-        error instanceof DashboardApiError
-          ? error.message
-          : 'Could not update your business profile.',
-      );
+      setSubmitError(settingsErrorMessage(error, 'Could not update your business profile.'));
     } finally {
       setSubmitting(false);
     }
@@ -251,7 +244,7 @@ export default function BusinessProfileScreen() {
           <View style={styles.form}>
             <View style={styles.field}>
               <Text style={styles.label}>Shop Name</Text>
-              <TextInput
+              <AppTextInput
                 value={draft.shopName}
                 onChangeText={(value) => {
                   setDraft((current) => ({ ...current, shopName: value }));
@@ -288,7 +281,7 @@ export default function BusinessProfileScreen() {
 
             <View style={styles.field}>
               <Text style={styles.label}>Registered Address</Text>
-              <TextInput
+              <AppTextInput
                 value={draft.address}
                 onChangeText={(value) => {
                   setDraft((current) => ({ ...current, address: value }));
@@ -393,7 +386,7 @@ export default function BusinessProfileScreen() {
             <Text style={styles.confirmBody}>
               Enter your current password to save these shop details.
             </Text>
-            <TextInput
+            <AppTextInput
               value={currentPassword}
               onChangeText={(value) => {
                 setCurrentPassword(value);

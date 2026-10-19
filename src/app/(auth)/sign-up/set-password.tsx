@@ -9,13 +9,14 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppTextInput } from '@/components/AppTextInput';
 import { colors, spacing, typography } from '@/constants/theme';
 import { setShopPassword } from '@/lib/auth-api';
+import { authErrorMessage, isAuthNetworkFailure } from '@/lib/auth-error-messages';
 import { isResetIntent } from '@/lib/auth-intent';
 import { routeAfterAuthenticatedSession } from '@/lib/onboarding-routing';
 import { getSessionToken } from '@/lib/session';
@@ -87,15 +88,10 @@ export default function SetPasswordScreen() {
       }
       router.replace('/(auth)/sign-up/business-details');
     } catch (error) {
-      const message = error instanceof Error ? error.message : '';
-      if (
-        message.toLowerCase().includes('network') ||
-        message.toLowerCase().includes('fetch') ||
-        message.length === 0
-      ) {
+      if (isAuthNetworkFailure(error)) {
         setNetworkError(true);
       } else {
-        setFormError(message);
+        setFormError(authErrorMessage(error, 'Could not save your password.'));
       }
     } finally {
       setLoading(false);
@@ -150,7 +146,7 @@ export default function SetPasswordScreen() {
               <Text style={styles.label}>Password</Text>
               <View style={styles.inputShell}>
                 <Image source={lockIcon} style={styles.lock} contentFit="contain" />
-                <TextInput
+                <AppTextInput
                   value={password}
                   onChangeText={(value) => {
                     setPassword(value);
@@ -183,7 +179,7 @@ export default function SetPasswordScreen() {
                   confirmPassword.length > 0 && !passwordsMatch && styles.inputError,
                 ]}>
                 <Image source={lockIcon} style={styles.lock} contentFit="contain" />
-                <TextInput
+                <AppTextInput
                   value={confirmPassword}
                   onChangeText={(value) => {
                     setConfirmPassword(value);

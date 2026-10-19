@@ -9,13 +9,14 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppTextInput } from '@/components/AppTextInput';
 import { colors, spacing, typography } from '@/constants/theme';
 import { apiUrl } from '@/lib/api';
+import { USER_INACTIVE_LOGIN_COPY } from '@/lib/auth-error-messages';
 import { routeAfterAuthenticatedSession } from '@/lib/onboarding-routing';
 import { extractRefreshToken, extractSessionToken, setSessionTokens } from '@/lib/session';
 
@@ -30,6 +31,19 @@ const arrowIcon = require('@/assets/images/login/arrow.png');
 function toE164Phone(value: string) {
   const digits = value.replace(/\D/g, '');
   return `+91${digits}`;
+}
+
+function shopLoginErrorCode(body: unknown): string | null {
+  if (!body || typeof body !== 'object') return null;
+  const record = body as Record<string, unknown>;
+  if (typeof record.code === 'string' && record.code.length > 0) return record.code;
+  const error = record.error;
+  if (typeof error === 'string' && /^[A-Z][A-Z0-9_]+$/.test(error)) return error;
+  if (error && typeof error === 'object') {
+    const code = (error as Record<string, unknown>).code;
+    if (typeof code === 'string' && code.length > 0) return code;
+  }
+  return null;
 }
 
 export default function LoginScreen() {
@@ -87,6 +101,19 @@ export default function LoginScreen() {
       if (response.status === 401) {
         setPasswordError('Invalid phone number or password');
         return;
+      }
+
+      if (response.status === 403) {
+        let body: unknown = null;
+        try {
+          body = await response.json();
+        } catch {
+          body = null;
+        }
+        if (shopLoginErrorCode(body) === 'USER_INACTIVE') {
+          setPasswordError(USER_INACTIVE_LOGIN_COPY);
+          return;
+        }
       }
 
       setNetworkError(true);
@@ -148,7 +175,7 @@ export default function LoginScreen() {
                   <Image source={flagIcon} style={styles.flag} contentFit="contain" />
                   <Text style={styles.prefixText}>+91</Text>
                 </View>
-                <TextInput
+                <AppTextInput
                   value={phone}
                   onChangeText={setPhone}
                   placeholder="98765 43210"
@@ -165,7 +192,7 @@ export default function LoginScreen() {
               <Text style={styles.label}>Password</Text>
               <View style={[styles.inputShell, passwordError && styles.inputError]}>
                 <Image source={lockIcon} style={styles.lock} contentFit="contain" />
-                <TextInput
+                <AppTextInput
                   value={password}
                   onChangeText={(value) => {
                     setPassword(value);

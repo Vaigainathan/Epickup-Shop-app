@@ -1,6 +1,8 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { AppTextInput } from '@/components/AppTextInput';
 
 import { AttestationCheckbox } from '@/components/payment/AttestationCheckbox';
 import { ConfirmBottomSheet } from '@/components/payment/ConfirmBottomSheet';
@@ -338,7 +340,7 @@ export function OrderPaymentActions({
           onClose={() => !busy && resetSheet()}
           busy={busy}>
           {phase === 'form' && activeAction === 'amount_differs' ? (
-            <TextInput
+            <AppTextInput
               value={receivedAmount}
               onChangeText={setReceivedAmount}
               placeholder="Amount received"

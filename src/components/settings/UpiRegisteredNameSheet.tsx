@@ -5,10 +5,10 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 
+import { AppTextInput } from '@/components/AppTextInput';
 import { colors, spacing, typography } from '@/constants/theme';
 import { validateUpiRegisteredName } from '@/lib/upi-registered-name';
 
@@ -49,7 +49,7 @@ export function UpiRegisteredNameSheet({
             This must match the name shown in your UPI app. Changing it clears verification — you
             won’t receive marketplace orders until support verifies the new name.
           </Text>
-          <TextInput
+          <AppTextInput
             value={name}
             onChangeText={setName}
             placeholder="Name as on UPI"

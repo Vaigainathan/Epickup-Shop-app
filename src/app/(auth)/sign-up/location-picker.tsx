@@ -7,18 +7,19 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppTextInput } from '@/components/AppTextInput';
 import { colors, spacing, typography } from '@/constants/theme';
 import {
   fetchPlaceAutocomplete,
   fetchPlaceDetails,
   PlacePrediction,
 } from '@/lib/auth-api';
+import { authErrorMessage } from '@/lib/auth-error-messages';
 import { useLocationPicker } from '@/lib/location-picker-context';
 import { getSessionToken } from '@/lib/session';
 
@@ -140,7 +141,7 @@ export default function LocationPickerScreen() {
         if (requestId === searchRequestId.current) setPredictions(nextPredictions);
       } catch (error) {
         if (!isAbortError(error) && requestId === searchRequestId.current) {
-          setSearchError(error instanceof Error ? error.message : 'Could not search for a place.');
+          setSearchError(authErrorMessage(error, 'Could not search for a place.'));
           setPredictions([]);
         }
       } finally {
@@ -203,7 +204,7 @@ export default function LocationPickerScreen() {
         details.formattedAddress,
       );
     } catch (error) {
-      setSearchError(error instanceof Error ? error.message : 'Could not load that place.');
+      setSearchError(authErrorMessage(error, 'Could not load that place.'));
     }
   }
 
@@ -255,7 +256,7 @@ export default function LocationPickerScreen() {
           <Text style={styles.cancelText}>Cancel</Text>
         </Pressable>
         <View style={styles.searchWrap}>
-          <TextInput
+          <AppTextInput
             autoFocus
             value={search}
             onChangeText={setSearch}

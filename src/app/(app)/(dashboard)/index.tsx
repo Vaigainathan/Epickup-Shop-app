@@ -16,12 +16,12 @@ import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
 import { fetchShopProducts } from '@/lib/catalogue-api';
 import {
-  DashboardApiError,
   DashboardStats,
   fetchDashboardStats,
   fetchShopProfile,
   updateShopStatus,
 } from '@/lib/dashboard-api';
+import { dashboardErrorMessage } from '@/lib/dashboard-error-messages';
 import { fetchRefundsDueCount } from '@/lib/refunds-api';
 import { formatShopOpenIndicator } from '@/lib/shop-open-indicator';
 
@@ -72,11 +72,7 @@ export default function DashboardScreen() {
       setProductCount(products.length);
       setRefundsDueCount(refundsCount);
     } catch (loadError) {
-      setError(
-        loadError instanceof DashboardApiError
-          ? loadError.message
-          : 'Could not load your dashboard.',
-      );
+      setError(dashboardErrorMessage(loadError, 'Could not load your dashboard.'));
     } finally {
       setLoading(false);
     }
@@ -98,11 +94,7 @@ export default function DashboardScreen() {
       const updated = await updateShopStatus(next);
       setIsOpen(updated);
     } catch (toggleError) {
-      setStatusError(
-        toggleError instanceof DashboardApiError
-          ? toggleError.message
-          : 'Could not update store status.',
-      );
+      setStatusError(dashboardErrorMessage(toggleError, 'Could not update store status.'));
     } finally {
       setStatusSaving(false);
     }

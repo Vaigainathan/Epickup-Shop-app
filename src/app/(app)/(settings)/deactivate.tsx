@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, spacing, typography } from '@/constants/theme';
 import { DashboardApiError, deactivateShop } from '@/lib/dashboard-api';
+import { deactivateErrorMessage } from '@/lib/deactivate-error-messages';
 import { unregisterShopPushBestEffort } from '@/lib/shop-push-registration';
 import { wipeShopSession } from '@/lib/session';
 
@@ -38,11 +39,7 @@ export default function DeactivateShopScreen() {
           'Cannot deactivate while orders are in progress. Finish current orders, then try again.',
         );
       } else {
-        setError(
-          deactivateError instanceof DashboardApiError
-            ? deactivateError.message
-            : 'Could not deactivate your shop.',
-        );
+        setError(deactivateErrorMessage(deactivateError, 'Could not deactivate your shop.'));
       }
     } finally {
       setBusy(false);

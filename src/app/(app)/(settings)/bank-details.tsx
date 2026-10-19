@@ -10,11 +10,11 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppTextInput } from '@/components/AppTextInput';
 import { UpiRegisteredNameSheet } from '@/components/settings/UpiRegisteredNameSheet';
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
@@ -25,6 +25,7 @@ import {
   updateShopUpiRegisteredName,
   verifyShopSettingsUpi,
 } from '@/lib/dashboard-api';
+import { settingsErrorMessage } from '@/lib/settings-error-messages';
 
 const logo = require('@/assets/images/login/logo.png');
 const IFSC_REGEX = /^[A-Z]{4}0[A-Z0-9]{6}$/;
@@ -130,11 +131,7 @@ export default function BankDetailsScreen() {
       setUpiNameVerified(profile.upiNameVerified);
       setLoaded(true);
     } catch (error) {
-      setLoadError(
-        error instanceof DashboardApiError
-          ? error.message
-          : 'Could not load your bank details.',
-      );
+      setLoadError(settingsErrorMessage(error, 'Could not load your bank details.'));
     } finally {
       setLoading(false);
     }
@@ -196,11 +193,7 @@ export default function BankDetailsScreen() {
       setVerificationMessage('UPI ID verified successfully.');
     } catch (error) {
       setVerifiedUpiId(null);
-      setVerificationError(
-        error instanceof DashboardApiError
-          ? error.message
-          : 'Could not verify this UPI ID.',
-      );
+      setVerificationError(settingsErrorMessage(error, 'Could not verify this UPI ID.'));
     } finally {
       setVerifyingUpi(false);
     }
@@ -267,11 +260,7 @@ export default function BankDetailsScreen() {
         );
         return;
       }
-      setSubmitError(
-        error instanceof DashboardApiError
-          ? error.message
-          : 'Could not update your bank details.',
-      );
+      setSubmitError(settingsErrorMessage(error, 'Could not update your bank details.'));
     } finally {
       setSubmitting(false);
     }
@@ -349,7 +338,7 @@ export default function BankDetailsScreen() {
           <View style={styles.form}>
             <View style={styles.field}>
               <Text style={styles.label}>Account Holder Name</Text>
-              <TextInput
+              <AppTextInput
                 value={accountHolderName}
                 onChangeText={(value) => {
                   setAccountHolderName(value);
@@ -364,7 +353,7 @@ export default function BankDetailsScreen() {
 
             <View style={styles.field}>
               <Text style={styles.label}>Bank Name</Text>
-              <TextInput
+              <AppTextInput
                 value={bankName}
                 onChangeText={(value) => {
                   setBankName(value);
@@ -381,7 +370,7 @@ export default function BankDetailsScreen() {
               <Text style={styles.label}>Account Number</Text>
               {accountEditing ? (
                 <>
-                  <TextInput
+                  <AppTextInput
                     value={accountNumber}
                     onChangeText={(value) => {
                       setAccountNumber(value.replace(/\D/g, '').slice(0, 18));
@@ -427,7 +416,7 @@ export default function BankDetailsScreen() {
 
             <View style={styles.field}>
               <Text style={styles.label}>IFSC Code</Text>
-              <TextInput
+              <AppTextInput
                 value={ifscCode}
                 onChangeText={(value) => {
                   setIfscCode(normalizeIfsc(value));
@@ -450,7 +439,7 @@ export default function BankDetailsScreen() {
             <View style={styles.field}>
               <Text style={styles.label}>UPI ID</Text>
               <View style={styles.upiRow}>
-                <TextInput
+                <AppTextInput
                   value={upiId}
                   onChangeText={onUpiChange}
                   placeholder="Enter your UPI ID"
@@ -531,7 +520,7 @@ export default function BankDetailsScreen() {
             <Text style={styles.confirmBody}>
               Enter your current password to save these bank details.
             </Text>
-            <TextInput
+            <AppTextInput
               value={currentPassword}
               onChangeText={(value) => {
                 setCurrentPassword(value);

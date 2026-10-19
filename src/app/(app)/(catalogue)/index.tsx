@@ -8,13 +8,15 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppTextInput } from '@/components/AppTextInput';
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
+import { productShopVisibilityLabel } from '@/lib/catalogue-format';
+import { catalogueErrorMessage } from '@/lib/catalogue-error-messages';
 import {
   CatalogueApiError,
   fetchShopCategories,
@@ -71,11 +73,7 @@ export default function CatalogueScreen() {
           : ALL_ITEMS,
       );
     } catch (loadError) {
-      setError(
-        loadError instanceof CatalogueApiError
-          ? loadError.message
-          : 'Could not load your catalogue.',
-      );
+      setError(catalogueErrorMessage(loadError, 'Could not load your catalogue.'));
     } finally {
       setLoading(false);
     }
@@ -142,7 +140,7 @@ export default function CatalogueScreen() {
 
       <View style={styles.searchShell}>
         <MaterialCommunityIcons name="magnify" size={18} color={colors.textMuted} />
-        <TextInput
+        <AppTextInput
           value={search}
           onChangeText={setSearch}
           placeholder="Search products..."
@@ -235,7 +233,7 @@ export default function CatalogueScreen() {
                   ) : (
                     <View style={[styles.stockPill, !item.isActive && styles.stockPillOut]}>
                       <Text style={[styles.stockText, !item.isActive && styles.stockTextOut]}>
-                        {item.isActive ? 'In Stock' : 'Out of Stock'}
+                        {productShopVisibilityLabel(item.isActive)}
                       </Text>
                     </View>
                   )}

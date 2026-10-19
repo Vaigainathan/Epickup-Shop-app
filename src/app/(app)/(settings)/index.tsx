@@ -16,12 +16,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
 import {
-  DashboardApiError,
   fetchPaymentHistory,
   fetchShopProfile,
   PaymentHistoryItem,
   ShopProfile,
 } from '@/lib/dashboard-api';
+import { settingsErrorMessage } from '@/lib/settings-error-messages';
 import { formatDisplayId, formatInr } from '@/lib/orders-api';
 import { formatShopOpenIndicator } from '@/lib/shop-open-indicator';
 import { unregisterShopPushBestEffort } from '@/lib/shop-push-registration';
@@ -66,11 +66,7 @@ export default function SettingsScreen() {
       setProfile(nextProfile);
       setPayments(nextPayments.slice(0, 2));
     } catch (loadError) {
-      setError(
-        loadError instanceof DashboardApiError
-          ? loadError.message
-          : 'Could not load your settings.',
-      );
+      setError(settingsErrorMessage(loadError, 'Could not load your settings.'));
     } finally {
       setLoading(false);
     }

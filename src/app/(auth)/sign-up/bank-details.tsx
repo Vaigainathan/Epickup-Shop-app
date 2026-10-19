@@ -9,17 +9,18 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppTextInput } from '@/components/AppTextInput';
 import { colors, spacing, typography } from '@/constants/theme';
 import {
   saveShopBankDetails,
   submitShopOnboarding,
   verifyShopUpi,
 } from '@/lib/auth-api';
+import { authErrorMessage } from '@/lib/auth-error-messages';
 import { routeAfterAuthenticatedSession } from '@/lib/onboarding-routing';
 import { getSessionToken } from '@/lib/session';
 
@@ -88,7 +89,7 @@ export default function SignUpBankDetailsScreen() {
       setVerificationMessage('UPI ID verified successfully.');
     } catch (error) {
       setVerifiedUpiId(null);
-      setVerificationError(error instanceof Error ? error.message : 'Could not verify this UPI ID.');
+      setVerificationError(authErrorMessage(error, 'Could not verify this UPI ID.'));
     } finally {
       setVerifyingUpi(false);
     }
@@ -116,9 +117,7 @@ export default function SignUpBankDetailsScreen() {
           token,
         );
       } catch (error) {
-        setSubmitError(
-          error instanceof Error ? error.message : 'Could not save your bank details.',
-        );
+        setSubmitError(authErrorMessage(error, 'Could not save your bank details.'));
         return;
       }
 
@@ -132,7 +131,7 @@ export default function SignUpBankDetailsScreen() {
         });
       }
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : 'Could not submit your application.');
+      setSubmitError(authErrorMessage(error, 'Could not submit your application.'));
     } finally {
       setSubmitting(false);
     }
@@ -175,7 +174,7 @@ export default function SignUpBankDetailsScreen() {
           <View style={styles.form}>
             <View style={styles.field}>
               <Text style={styles.label}>Account Holder Name</Text>
-              <TextInput
+              <AppTextInput
                 value={accountHolderName}
                 onChangeText={(value) => {
                   setAccountHolderName(value);
@@ -190,7 +189,7 @@ export default function SignUpBankDetailsScreen() {
 
             <View style={styles.field}>
               <Text style={styles.label}>Bank Name</Text>
-              <TextInput
+              <AppTextInput
                 value={bankName}
                 onChangeText={(value) => {
                   setBankName(value);
@@ -205,7 +204,7 @@ export default function SignUpBankDetailsScreen() {
 
             <View style={styles.field}>
               <Text style={styles.label}>Account Number</Text>
-              <TextInput
+              <AppTextInput
                 value={accountNumber}
                 onChangeText={(value) => {
                   setAccountNumber(value.replace(/\D/g, '').slice(0, 18));
@@ -225,7 +224,7 @@ export default function SignUpBankDetailsScreen() {
 
             <View style={styles.field}>
               <Text style={styles.label}>IFSC Code</Text>
-              <TextInput
+              <AppTextInput
                 value={ifscCode}
                 onChangeText={(value) => {
                   setIfscCode(normalizeIfsc(value));
@@ -248,7 +247,7 @@ export default function SignUpBankDetailsScreen() {
             <View style={styles.field}>
               <Text style={styles.label}>UPI ID</Text>
               <View style={styles.upiRow}>
-                <TextInput
+                <AppTextInput
                   value={upiId}
                   onChangeText={(value) => {
                     setUpiId(value);

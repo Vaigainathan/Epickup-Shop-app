@@ -1,6 +1,8 @@
 import * as Clipboard from 'expo-clipboard';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { AppTextInput } from '@/components/AppTextInput';
 
 import { ConfirmBottomSheet } from '@/components/payment/ConfirmBottomSheet';
 import { colors, spacing, typography } from '@/constants/theme';
@@ -113,7 +115,7 @@ export function MarkRefundSentSheet({
         <Text style={styles.amountLabel}>Amount</Text>
         <Text style={styles.amountValue}>{formatInr(amount)}</Text>
       </View>
-      <TextInput
+      <AppTextInput
         value={utr}
         onChangeText={setUtr}
         placeholder="12-digit refund UTR"

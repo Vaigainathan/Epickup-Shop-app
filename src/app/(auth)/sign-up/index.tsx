@@ -9,13 +9,14 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppTextInput } from '@/components/AppTextInput';
 import { colors, spacing, typography } from '@/constants/theme';
 import { checkShopPhone } from '@/lib/auth-api';
+import { authSignUpPhoneErrorMessage, isAuthNetworkFailure } from '@/lib/auth-error-messages';
 import { isResetIntent, RESET_INTENT } from '@/lib/auth-intent';
 import { isValidIndianMobile, startPhoneSignIn, toE164Phone } from '@/lib/phone-auth';
 
@@ -76,15 +77,10 @@ export default function SignUpPhoneScreen() {
           : { phone: phoneE164 },
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : '';
-      if (
-        message.toLowerCase().includes('network') ||
-        message.toLowerCase().includes('fetch') ||
-        message.length === 0
-      ) {
+      if (isAuthNetworkFailure(error)) {
         setNetworkError(true);
       } else {
-        setPhoneError(message);
+        setPhoneError(authSignUpPhoneErrorMessage(error, RESET_GENERIC_ERROR));
       }
     } finally {
       setLoading(false);
@@ -142,7 +138,7 @@ export default function SignUpPhoneScreen() {
                   <Image source={flagIcon} style={styles.flag} contentFit="contain" />
                   <Text style={styles.prefixText}>+91</Text>
                 </View>
-                <TextInput
+                <AppTextInput
                   value={digits}
                   onChangeText={(value) => {
                     setPhone(value.replace(/\D/g, '').slice(0, 10));

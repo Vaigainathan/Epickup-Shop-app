@@ -1,4 +1,6 @@
 import { apiUrl } from '@/lib/api';
+import { DashboardApiError } from '@/lib/dashboard-api';
+import { dashboardErrorMessage } from '@/lib/dashboard-error-messages';
 import { getSessionToken } from '@/lib/session';
 import {
   cancelledDetailCopy,
@@ -193,6 +195,12 @@ export function ordersErrorMessage(error: unknown, fallback: string): string {
     default:
       return GENERIC_ORDER_ERROR;
   }
+}
+
+export function ordersScreenErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof OrdersApiError) return ordersErrorMessage(error, fallback);
+  if (error instanceof DashboardApiError) return dashboardErrorMessage(error, fallback);
+  return fallback;
 }
 
 export function formatDisplayId(displayId: number | null | undefined): string {

@@ -9,12 +9,12 @@ import {
   StyleSheet,
   Switch,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { TimePickerSheet } from '@/components/TimePickerSheet';
+import { AppTextInput } from '@/components/AppTextInput';
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
 import {
@@ -227,7 +227,7 @@ export default function StorefrontScreen() {
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Tagline</Text>
-          <TextInput
+          <AppTextInput
             value={tagline}
             onChangeText={(value) => {
               setTagline(value.slice(0, TAGLINE_MAX));

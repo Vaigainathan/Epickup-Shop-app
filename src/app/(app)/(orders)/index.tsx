@@ -8,21 +8,20 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppTextInput } from '@/components/AppTextInput';
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
-import { DashboardApiError, fetchShopProfile } from '@/lib/dashboard-api';
+import { fetchShopProfile } from '@/lib/dashboard-api';
 import {
   fetchShopOrders,
   formatDisplayId,
   formatInr,
   itemCount,
-  OrdersApiError,
-  ordersErrorMessage,
+  ordersScreenErrorMessage,
   OrdersListFilter,
   relativeTime,
   shopOrderLabelShort,
@@ -113,11 +112,7 @@ export default function OrdersScreen() {
         setClosesAt(profile.closesAt);
       }
     } catch (loadError) {
-      setError(
-        loadError instanceof OrdersApiError || loadError instanceof DashboardApiError
-          ? ordersErrorMessage(loadError, 'Could not load orders.')
-          : 'Could not load orders.',
-      );
+      setError(ordersScreenErrorMessage(loadError, 'Could not load orders.'));
     } finally {
       setLoading(false);
     }
@@ -206,7 +201,7 @@ export default function OrdersScreen() {
 
       <View style={styles.searchShell}>
         <MaterialCommunityIcons name="magnify" size={18} color={colors.textMuted} />
-        <TextInput
+        <AppTextInput
           value={search}
           onChangeText={setSearch}
           placeholder="Search order ID..."
@@ -345,9 +340,7 @@ function OrderCard({ order, onPress }: { order: ShopOrder; onPress: () => void }
               ? 'Handed to driver'
               : order.payment.status === 'expired'
                 ? "Payment wasn't confirmed in time"
-                : relativeTime(order.createdAt)
-                  ? `Ordered ${relativeTime(order.createdAt).toLowerCase()}`
-                  : ''}
+                : ''}
         </Text>
         <Text style={styles.detailsLink}>Details {'>'}</Text>
       </View>

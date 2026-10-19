@@ -16,8 +16,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppTextInput } from '@/components/AppTextInput';
 import { colors, spacing, typography } from '@/constants/theme';
 import { verifyFirebaseShopToken } from '@/lib/auth-api';
+import { authErrorMessage } from '@/lib/auth-error-messages';
 import { isResetIntent, RESET_INTENT } from '@/lib/auth-intent';
 import {
   clearPendingPhoneAuth,
@@ -99,8 +101,7 @@ export default function SignUpOtpScreen() {
         router.replace('/(auth)/sign-up/set-password');
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Invalid verification code';
-      setError(message);
+      setError(authErrorMessage(err, 'Invalid verification code'));
       setDigits(Array(OTP_LENGTH).fill(''));
       inputsRef.current[0]?.focus();
     } finally {
@@ -162,7 +163,7 @@ export default function SignUpOtpScreen() {
       setSecondsLeft(RESEND_SECONDS);
       inputsRef.current[0]?.focus();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not resend OTP');
+      setError('Could not resend OTP. Try again.');
     } finally {
       setLoading(false);
     }
@@ -195,7 +196,7 @@ export default function SignUpOtpScreen() {
           <View style={styles.card}>
             <View style={styles.otpRow}>
               {digits.map((digit, index) => (
-                <TextInput
+                <AppTextInput
                   key={`otp-${index}`}
                   ref={(ref) => {
                     inputsRef.current[index] = ref;

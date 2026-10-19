@@ -12,11 +12,11 @@ import {
   StyleSheet,
   Switch,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppTextInput } from '@/components/AppTextInput';
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
 import { fetchShopType } from '@/lib/auth-api';
@@ -31,17 +31,27 @@ import {
   ShopProductVariant,
   updateShopProduct,
 } from '@/lib/catalogue-api';
+import { catalogueErrorMessage } from '@/lib/catalogue-error-messages';
+import {
+  MIXED_OPTION_NAMES_NOTE,
+  priceOverridePlaceholder,
+  productShopVisibilityLabel,
+  STOCK_REPLACE_HINT,
+} from '@/lib/catalogue-format';
 import {
   pickProductPhotoFromCamera,
   pickProductPhotoFromGallery,
   PickedMedia,
 } from '@/lib/pick-media';
+import {
+  dominantAttributeLabel,
+  hasMixedAttributeLabels,
+} from '@/lib/variant-option-name';
 import { chipsForShopType } from '@/lib/variant-option-suggestions';
 
 type VariantDraft = {
   key: string;
   id?: string;
-  attributeLabel: string;
   value: string;
   stock: string;
   priceOverride: string;
@@ -71,7 +81,6 @@ function parseStock(value: string): number | null {
 function emptyVariant(key: string): VariantDraft {
   return {
     key,
-    attributeLabel: '',
     value: '',
     stock: '',
     priceOverride: '',
@@ -86,7 +95,6 @@ function variantsFromProduct(product: ShopProduct, nextKey: () => string): Varia
   return product.variants.map((variant) => ({
     key: variant.id ?? nextKey(),
     id: variant.id,
-    attributeLabel: variant.attributeLabel,
     value: variant.value,
     stock: String(variant.stock),
     priceOverride: variant.priceOverride === null ? '' : String(variant.priceOverride),
@@ -94,10 +102,14 @@ function variantsFromProduct(product: ShopProduct, nextKey: () => string): Varia
   }));
 }
 
-function buildVariantsPayload(drafts: VariantDraft[]): ShopProductVariant[] | null {
-  const complete = drafts.filter(
-    (draft) => draft.attributeLabel.trim().length > 0 && draft.value.trim().length > 0,
-  );
+function buildVariantsPayload(
+  drafts: VariantDraft[],
+  optionName: string,
+): ShopProductVariant[] | null {
+  const label = optionName.trim();
+  if (label.length === 0) return null;
+
+  const complete = drafts.filter((draft) => draft.value.trim().length > 0);
   if (complete.length === 0) return null;
 
   const variants: ShopProductVariant[] = [];
@@ -109,7 +121,7 @@ function buildVariantsPayload(drafts: VariantDraft[]): ShopProductVariant[] | nu
     if (draft.priceOverride.trim().length > 0 && priceOverride === null) return null;
     variants.push({
       id: draft.id,
-      attributeLabel: draft.attributeLabel.trim(),
+      attributeLabel: label,
       value: draft.value.trim(),
       stock,
       priceOverride,
@@ -145,6 +157,8 @@ export default function AddProductScreen() {
   const [isActive, setIsActive] = useState(true);
   const [stock, setStock] = useState('');
   const [hasVariants, setHasVariants] = useState(false);
+  const [optionName, setOptionName] = useState('');
+  const [mixedOptionNamesNote, setMixedOptionNamesNote] = useState(false);
   const [variants, setVariants] = useState<VariantDraft[]>(() => [emptyVariant('variant-0')]);
   const [localPhoto, setLocalPhoto] = useState<PickedMedia | null>(null);
   const [remotePhotoUrl, setRemotePhotoUrl] = useState<string | null>(null);
@@ -188,13 +202,18 @@ export default function AddProductScreen() {
         setStock(product.hasVariants ? '' : String(product.stock));
         setHasVariants(product.hasVariants);
         setVariants(variantsFromProduct(product, nextKey));
+        if (product.hasVariants) {
+          setOptionName(dominantAttributeLabel(product.variants));
+          setMixedOptionNamesNote(hasMixedAttributeLabels(product.variants));
+        } else {
+          setOptionName('');
+          setMixedOptionNamesNote(false);
+        }
         setRemotePhotoUrl(product.photoUrl);
         setLocalPhoto(null);
       }
     } catch (error) {
-      setLoadError(
-        error instanceof CatalogueApiError ? error.message : 'Could not load this product form.',
-      );
+      setLoadError(catalogueErrorMessage(error, 'Could not load this product form.'));
     } finally {
       setLoading(false);
     }
@@ -219,10 +238,20 @@ export default function AddProductScreen() {
     if (parsedPrice === null || price.trim().length === 0) return false;
     if (!selectedCategory) return false;
     if (hasVariants) {
-      return buildVariantsPayload(variants) !== null;
+      return buildVariantsPayload(variants, optionName) !== null;
     }
     return parsedStock !== null;
-  }, [saving, name, parsedPrice, price, selectedCategory, hasVariants, variants, parsedStock]);
+  }, [
+    saving,
+    name,
+    parsedPrice,
+    price,
+    selectedCategory,
+    hasVariants,
+    variants,
+    optionName,
+    parsedStock,
+  ]);
 
   function closeSheets() {
     setSheet({ kind: 'closed' });
@@ -269,7 +298,7 @@ export default function AddProductScreen() {
   async function saveProduct() {
     if (!canSave || !selectedCategory || parsedPrice === null) return;
 
-    const variantPayload = hasVariants ? buildVariantsPayload(variants) : [];
+    const variantPayload = hasVariants ? buildVariantsPayload(variants, optionName) : [];
     if (hasVariants && variantPayload === null) return;
     if (!hasVariants && parsedStock === null) return;
 
@@ -297,9 +326,7 @@ export default function AddProductScreen() {
       }
       router.back();
     } catch (error) {
-      setSaveError(
-        error instanceof CatalogueApiError ? error.message : 'Could not save this product.',
-      );
+      setSaveError(catalogueErrorMessage(error, 'Could not save this product.'));
     } finally {
       setSaving(false);
     }
@@ -366,7 +393,7 @@ export default function AddProductScreen() {
           <View style={styles.fields}>
             <View style={styles.field}>
               <Text style={styles.label}>Product Name</Text>
-              <TextInput
+              <AppTextInput
                 value={name}
                 onChangeText={(value) => {
                   setName(value);
@@ -381,7 +408,7 @@ export default function AddProductScreen() {
 
             <View style={styles.field}>
               <Text style={styles.label}>Product Details</Text>
-              <TextInput
+              <AppTextInput
                 value={description}
                 onChangeText={setDescription}
                 placeholder="Brief description of the product"
@@ -398,7 +425,7 @@ export default function AddProductScreen() {
                 <Text style={styles.label}>Price (₹)</Text>
                 <View style={styles.priceShell}>
                   <Text style={styles.currency}>₹</Text>
-                  <TextInput
+                  <AppTextInput
                     value={price}
                     onChangeText={(value) => {
                       setPrice(value);
@@ -448,8 +475,8 @@ export default function AddProductScreen() {
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <View style={styles.flex}>
-                  <Text style={styles.cardTitle}>Inventory Status</Text>
-                  <Text style={styles.cardSubtitle}>Show product in the public shop</Text>
+                  <Text style={styles.cardTitle}>Shop visibility</Text>
+                  <Text style={styles.cardSubtitle}>Control whether customers see this product</Text>
                 </View>
                 <Switch
                   value={isActive}
@@ -467,13 +494,14 @@ export default function AddProductScreen() {
                   color={isActive ? colors.accent : colors.error}
                 />
                 <Text style={[styles.statusText, !isActive && styles.statusTextOff]}>
-                  {isActive ? 'IN STOCK & READY' : 'OUT OF STOCK'}
+                  {productShopVisibilityLabel(isActive)}
                 </Text>
               </View>
               {!hasVariants ? (
                 <View style={styles.stockField}>
                   <Text style={styles.label}>Stock quantity</Text>
-                  <TextInput
+                  <Text style={styles.labelHint}>{STOCK_REPLACE_HINT}</Text>
+                  <AppTextInput
                     value={stock}
                     onChangeText={setStock}
                     placeholder="0"
@@ -519,57 +547,56 @@ export default function AddProductScreen() {
               ) : null}
               {hasVariants ? (
                 <View style={styles.variantList}>
+                  {mixedOptionNamesNote ? (
+                    <Text style={styles.mixedOptionNote}>{MIXED_OPTION_NAMES_NOTE}</Text>
+                  ) : null}
+                  <View style={styles.chipBlock}>
+                    <Text style={styles.label}>Option name</Text>
+                    <Text style={styles.labelHint}>e.g. Size, Weight, Color</Text>
+                    <View style={styles.chipRow}>
+                      {optionChips.map((chip) => {
+                        const selected = optionName === chip;
+                        return (
+                          <Pressable
+                            key={chip}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Use ${chip}`}
+                            disabled={saving}
+                            onPress={() => {
+                              setOptionName(chip);
+                              setMixedOptionNamesNote(false);
+                            }}
+                            style={[styles.chip, selected && styles.chipSelected]}>
+                            <Text
+                              style={[styles.chipLabel, selected && styles.chipLabelSelected]}>
+                              {chip}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                    <AppTextInput
+                      value={optionName}
+                      onChangeText={(value) => {
+                        setOptionName(value);
+                        setMixedOptionNamesNote(false);
+                      }}
+                      placeholder="Option name"
+                      placeholderTextColor={colors.textPlaceholder}
+                      editable={!saving}
+                      style={styles.input}
+                    />
+                  </View>
                   {variants.map((variant) => (
                     <View key={variant.key} style={styles.variantCard}>
-                      <View style={styles.chipBlock}>
-                        <Text style={styles.quickOptionsLabel}>
-                          Quick options (or type your own below)
-                        </Text>
-                        <View style={styles.chipRow}>
-                          {optionChips.map((chip) => {
-                            const selected = variant.attributeLabel === chip;
-                            return (
-                              <Pressable
-                                key={chip}
-                                accessibilityRole="button"
-                                accessibilityLabel={`Use ${chip}`}
-                                disabled={saving}
-                                onPress={() =>
-                                  updateVariant(variant.key, { attributeLabel: chip })
-                                }
-                                style={[styles.chip, selected && styles.chipSelected]}>
-                                <Text
-                                  style={[
-                                    styles.chipLabel,
-                                    selected && styles.chipLabelSelected,
-                                  ]}>
-                                  {chip}
-                                </Text>
-                              </Pressable>
-                            );
-                          })}
-                        </View>
-                      </View>
                       <View style={styles.row}>
-                        <View style={[styles.field, styles.flex]}>
-                          <Text style={styles.label}>Option Name</Text>
-                          <Text style={styles.labelHint}>e.g. Size, Weight, Color</Text>
-                          <TextInput
-                            value={variant.attributeLabel}
-                            onChangeText={(value) =>
-                              updateVariant(variant.key, { attributeLabel: value })
-                            }
-                            placeholderTextColor={colors.textPlaceholder}
-                            editable={!saving}
-                            style={styles.input}
-                          />
-                        </View>
                         <View style={[styles.field, styles.flex]}>
                           <Text style={styles.label}>Option</Text>
                           <Text style={styles.labelHint}>e.g. Small, 1kg, Red</Text>
-                          <TextInput
+                          <AppTextInput
                             value={variant.value}
                             onChangeText={(value) => updateVariant(variant.key, { value })}
+                            placeholder="Option value"
                             placeholderTextColor={colors.textPlaceholder}
                             editable={!saving}
                             style={styles.input}
@@ -579,7 +606,8 @@ export default function AddProductScreen() {
                       <View style={styles.row}>
                         <View style={[styles.field, styles.flex]}>
                           <Text style={styles.label}>Stock</Text>
-                          <TextInput
+                          <Text style={styles.labelHint}>{STOCK_REPLACE_HINT}</Text>
+                          <AppTextInput
                             value={variant.stock}
                             onChangeText={(value) => updateVariant(variant.key, { stock: value })}
                             placeholder="0"
@@ -591,12 +619,12 @@ export default function AddProductScreen() {
                         </View>
                         <View style={[styles.field, styles.flex]}>
                           <Text style={styles.label}>Price override</Text>
-                          <TextInput
+                          <AppTextInput
                             value={variant.priceOverride}
                             onChangeText={(value) =>
                               updateVariant(variant.key, { priceOverride: value })
                             }
-                            placeholder="Optional"
+                            placeholder={priceOverridePlaceholder(parsedPrice)}
                             placeholderTextColor={colors.textPlaceholder}
                             keyboardType="decimal-pad"
                             editable={!saving}
@@ -1055,6 +1083,13 @@ const styles = StyleSheet.create({
     lineHeight: typography.lineHeights.body,
     fontFamily: typography.fonts.regular,
     color: colors.textSecondary,
+  },
+  mixedOptionNote: {
+    fontSize: typography.sizes.body,
+    lineHeight: typography.lineHeights.body,
+    fontFamily: typography.fonts.regular,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
   },
   variantList: {
     gap: spacing.md,

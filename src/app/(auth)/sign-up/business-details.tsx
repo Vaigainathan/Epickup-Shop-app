@@ -11,13 +11,14 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppTextInput } from '@/components/AppTextInput';
 import { colors, spacing, typography } from '@/constants/theme';
 import { saveShopBusinessDetails } from '@/lib/auth-api';
+import { authErrorMessage } from '@/lib/auth-error-messages';
 import { useLocationPicker } from '@/lib/location-picker-context';
 import { getSessionToken } from '@/lib/session';
 import { SHOP_TYPES } from '@/lib/shop-types';
@@ -81,7 +82,7 @@ export default function SignUpBusinessDetailsScreen() {
       );
       router.replace('/(auth)/sign-up/documents');
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : 'Could not save your details.');
+      setSubmitError(authErrorMessage(error, 'Could not save your details.'));
     } finally {
       setSubmitting(false);
     }
@@ -159,7 +160,7 @@ export default function SignUpBusinessDetailsScreen() {
           <View style={styles.form}>
             <View style={styles.field}>
               <Text style={styles.label}>Shop Name</Text>
-              <TextInput
+              <AppTextInput
                 value={shopName}
                 onChangeText={(value) => {
                   setShopName(value);
@@ -196,7 +197,7 @@ export default function SignUpBusinessDetailsScreen() {
 
             <View style={styles.field}>
               <Text style={styles.label}>Registered Address</Text>
-              <TextInput
+              <AppTextInput
                 value={address}
                 onChangeText={(value) => {
                   setAddress(value);

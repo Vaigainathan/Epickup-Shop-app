@@ -8,7 +8,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MarkUnavailableSheet } from '@/components/orders/MarkUnavailableSheet';
 import { ConfirmBottomSheet } from '@/components/payment/ConfirmBottomSheet';
 import { OrderPaymentActions } from '@/components/payment/OrderPaymentActions';
+import { AppTextInput } from '@/components/AppTextInput';
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
 import {
@@ -400,7 +400,7 @@ export default function OrderDetailsScreen() {
               <Text style={styles.otpId}>{formatDisplayId(order.displayId)}</Text>
             </View>
             <Text style={styles.hint}>Ask the driver for the OTP, then confirm handover.</Text>
-            <TextInput
+            <AppTextInput
               value={otpInput}
               onChangeText={(value) => {
                 setOtpInput(value);

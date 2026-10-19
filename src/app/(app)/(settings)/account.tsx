@@ -10,11 +10,11 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppTextInput } from '@/components/AppTextInput';
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
 import {
@@ -23,6 +23,7 @@ import {
   updateShopAccountPassword,
   updateShopAccountProfile,
 } from '@/lib/dashboard-api';
+import { settingsErrorMessage } from '@/lib/settings-error-messages';
 
 const logo = require('@/assets/images/login/logo.png');
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -89,11 +90,7 @@ export default function AccountScreen() {
       setProfileError(null);
       setLoaded(true);
     } catch (error) {
-      setLoadError(
-        error instanceof DashboardApiError
-          ? error.message
-          : 'Could not load your account.',
-      );
+      setLoadError(settingsErrorMessage(error, 'Could not load your account.'));
     } finally {
       setLoading(false);
     }
@@ -146,11 +143,7 @@ export default function AccountScreen() {
         setNameError('Name is required');
         return;
       }
-      setProfileError(
-        error instanceof DashboardApiError
-          ? error.message
-          : 'Could not update your account.',
-      );
+      setProfileError(settingsErrorMessage(error, 'Could not update your account.'));
     } finally {
       setSavingProfile(false);
     }
@@ -234,11 +227,7 @@ export default function AccountScreen() {
         setPasswordFormError('Too many attempts. Try again in a few minutes.');
         return;
       }
-      setPasswordFormError(
-        error instanceof DashboardApiError
-          ? error.message
-          : 'Could not update your password.',
-      );
+      setPasswordFormError(settingsErrorMessage(error, 'Could not update your password.'));
     } finally {
       setSavingPassword(false);
     }
@@ -296,7 +285,7 @@ export default function AccountScreen() {
           <View style={styles.form}>
             <View style={styles.field}>
               <Text style={styles.label}>Name</Text>
-              <TextInput
+              <AppTextInput
                 value={name}
                 onChangeText={(value) => {
                   setName(value);
@@ -313,7 +302,7 @@ export default function AccountScreen() {
 
             <View style={styles.field}>
               <Text style={styles.label}>Email</Text>
-              <TextInput
+              <AppTextInput
                 value={email}
                 onChangeText={(value) => {
                   setEmail(value);
@@ -366,7 +355,7 @@ export default function AccountScreen() {
             <Text style={styles.passwordTitle}>Change your password</Text>
             <View style={styles.field}>
               <Text style={styles.label}>Current password</Text>
-              <TextInput
+              <AppTextInput
                 value={currentPassword}
                 onChangeText={(value) => {
                   setCurrentPassword(value);
@@ -386,7 +375,7 @@ export default function AccountScreen() {
             </View>
             <View style={styles.field}>
               <Text style={styles.label}>New password</Text>
-              <TextInput
+              <AppTextInput
                 value={newPassword}
                 onChangeText={(value) => {
                   setNewPassword(value);
@@ -405,7 +394,7 @@ export default function AccountScreen() {
             </View>
             <View style={styles.field}>
               <Text style={styles.label}>Confirm new password</Text>
-              <TextInput
+              <AppTextInput
                 value={confirmPassword}
                 onChangeText={(value) => {
                   setConfirmPassword(value);

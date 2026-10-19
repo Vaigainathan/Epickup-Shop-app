@@ -10,13 +10,14 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppTextInput } from '@/components/AppTextInput';
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
+import { catalogueErrorMessage } from '@/lib/catalogue-error-messages';
 import {
   CatalogueApiError,
   createShopCategory,
@@ -58,11 +59,7 @@ export default function CategoriesScreen() {
       }
       setProductCounts(counts);
     } catch (loadError) {
-      setError(
-        loadError instanceof CatalogueApiError
-          ? loadError.message
-          : 'Could not load your categories.',
-      );
+      setError(catalogueErrorMessage(loadError, 'Could not load your categories.'));
     } finally {
       setLoading(false);
     }
@@ -115,11 +112,7 @@ export default function CategoriesScreen() {
       }
       resetForm();
     } catch (saveError) {
-      setBanner(
-        saveError instanceof CatalogueApiError
-          ? saveError.message
-          : 'Could not save this category.',
-      );
+      setBanner(catalogueErrorMessage(saveError, 'Could not save this category.'));
     } finally {
       setSaving(false);
     }
@@ -138,15 +131,7 @@ export default function CategoriesScreen() {
         resetForm();
       }
     } catch (deleteError) {
-      if (deleteError instanceof CatalogueApiError && deleteError.code === 'CATEGORY_IN_USE') {
-        setBanner(deleteError.message);
-      } else {
-        setBanner(
-          deleteError instanceof CatalogueApiError
-            ? deleteError.message
-            : 'Could not delete this category.',
-        );
-      }
+      setBanner(catalogueErrorMessage(deleteError, 'Could not delete this category.'));
     } finally {
       setDeletingId(null);
     }
@@ -202,7 +187,7 @@ export default function CategoriesScreen() {
                 Name your category to help customers find products faster.
               </Text>
               <Text style={styles.label}>Category Name</Text>
-              <TextInput
+              <AppTextInput
                 value={name}
                 onChangeText={setName}
                 placeholder="Category name"

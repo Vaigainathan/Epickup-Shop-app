@@ -17,6 +17,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
+import { catalogueErrorMessage } from '@/lib/catalogue-error-messages';
+import {
+  MIXED_OPTION_NAMES_NOTE,
+  productShopVisibilityLabel,
+} from '@/lib/catalogue-format';
+import { hasMixedAttributeLabels } from '@/lib/variant-option-name';
 import {
   CatalogueApiError,
   deleteShopProduct,
@@ -129,11 +135,7 @@ export default function ProductDetailsScreen() {
         categories.find((category) => category.id === nextProduct.categoryId)?.name ?? null,
       );
     } catch (loadError) {
-      setError(
-        loadError instanceof CatalogueApiError
-          ? loadError.message
-          : 'Could not load this product.',
-      );
+      setError(catalogueErrorMessage(loadError, 'Could not load this product.'));
     } finally {
       setLoading(false);
     }
@@ -224,9 +226,7 @@ export default function ProductDetailsScreen() {
       await load();
     } catch (stockError) {
       setSaveError(
-        stockError instanceof CatalogueApiError
-          ? stockError.message
-          : 'Could not update stock.',
+        catalogueErrorMessage(stockError, 'Could not update stock.'),
       );
     } finally {
       setSaving(false);
@@ -259,11 +259,7 @@ export default function ProductDetailsScreen() {
         router.back();
       }, 1400);
     } catch (removeError) {
-      setDeleteError(
-        removeError instanceof CatalogueApiError
-          ? removeError.message
-          : 'Could not delete this product.',
-      );
+      setDeleteError(catalogueErrorMessage(removeError, 'Could not delete this product.'));
     } finally {
       setDeleting(false);
     }
@@ -312,7 +308,7 @@ export default function ProductDetailsScreen() {
           )}
           <View style={[styles.stockPill, !product.isActive && styles.stockPillOut]}>
             <Text style={[styles.stockText, !product.isActive && styles.stockTextOut]}>
-              {product.isActive ? 'In Stock' : 'Out of Stock'}
+              {productShopVisibilityLabel(product.isActive)}
             </Text>
           </View>
         </View>
@@ -332,6 +328,9 @@ export default function ProductDetailsScreen() {
           <Text style={styles.cardLabel}>Inventory</Text>
           {product.hasVariants && product.variants.length > 0 ? (
             <View style={styles.variantList}>
+              {hasMixedAttributeLabels(product.variants) ? (
+                <Text style={styles.mixedOptionNote}>{MIXED_OPTION_NAMES_NOTE}</Text>
+              ) : null}
               <Text style={styles.totalStock}>
                 Total stock:{' '}
                 {product.variants.reduce((sum, variant) => sum + (variant.stock ?? 0), 0)}
@@ -694,6 +693,13 @@ const styles = StyleSheet.create({
   },
   variantList: {
     gap: spacing.sm,
+  },
+  mixedOptionNote: {
+    fontSize: typography.sizes.body,
+    lineHeight: typography.lineHeights.body,
+    fontFamily: typography.fonts.regular,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
   },
   totalStock: {
     fontSize: typography.sizes.body,

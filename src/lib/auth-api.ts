@@ -4,6 +4,18 @@ import { appendLocalFile } from '@/lib/pick-media';
 
 type JsonRecord = Record<string, unknown>;
 
+export class AuthApiError extends Error {
+  readonly status: number;
+  readonly code: string | null;
+
+  constructor(message: string, status: number, code: string | null) {
+    super(message);
+    this.name = 'AuthApiError';
+    this.status = status;
+    this.code = code;
+  }
+}
+
 async function parseJson(response: Response): Promise<JsonRecord | null> {
   try {
     const body = await response.json();
@@ -16,6 +28,23 @@ async function parseJson(response: Response): Promise<JsonRecord | null> {
 function nestedData(body: JsonRecord | null): JsonRecord | null {
   if (!body) return null;
   return body.data && typeof body.data === 'object' ? (body.data as JsonRecord) : null;
+}
+
+function errorCode(body: JsonRecord | null): string | null {
+  if (!body) return null;
+  if (typeof body.code === 'string' && body.code.length > 0) return body.code;
+  if (typeof body.error === 'string' && /^[A-Z][A-Z0-9_]+$/.test(body.error)) {
+    return body.error;
+  }
+  const error = body.error && typeof body.error === 'object' ? (body.error as JsonRecord) : null;
+  if (error && typeof error.code === 'string' && error.code.length > 0) {
+    return error.code;
+  }
+  return null;
+}
+
+function throwAuthError(body: JsonRecord | null, status: number, fallback: string): never {
+  throw new AuthApiError(fallback, status, errorCode(body));
 }
 
 function errorMessage(body: JsonRecord | null, fallback: string): string {
@@ -109,7 +138,7 @@ export async function fetchPlaceAutocomplete(
 
   const body = await parseJson(response);
   if (!response.ok) {
-    throw new Error(errorMessage(body, 'Could not search for that place.'));
+    throwAuthError(body, response.status, 'Could not search for that place.');
   }
 
   const data = nestedData(body) ?? body ?? {};
@@ -156,7 +185,7 @@ export async function fetchPlaceDetails(
 
   const body = await parseJson(response);
   if (!response.ok) {
-    throw new Error(errorMessage(body, 'Could not load that place.'));
+    throwAuthError(body, response.status, 'Could not load that place.');
   }
 
   const data = getPlacesData(body);
@@ -191,7 +220,7 @@ export async function checkShopPhone(phoneE164: string) {
 
   const body = await parseJson(response);
   if (!response.ok) {
-    throw new Error(errorMessage(body, 'Could not verify this phone number.'));
+    throwAuthError(body, response.status, 'Could not verify this phone number.');
   }
 
   const data = nestedData(body) ?? body ?? {};
@@ -218,7 +247,7 @@ export async function verifyFirebaseShopToken(idToken: string) {
 
   const body = await parseJson(response);
   if (!response.ok) {
-    throw new Error(errorMessage(body, 'Could not verify OTP with the server.'));
+    throwAuthError(body, response.status, 'Could not verify OTP with the server.');
   }
 
   return body ?? {};
@@ -237,7 +266,7 @@ export async function setShopPassword(password: string, bearerToken: string) {
 
   const body = await parseJson(response);
   if (!response.ok) {
-    throw new Error(errorMessage(body, 'Could not save your password.'));
+    throwAuthError(body, response.status, 'Could not save your password.');
   }
 
   return body ?? {};
@@ -270,7 +299,7 @@ export async function uploadShopOnboardingDocument(
 
   const body = await parseJson(response);
   if (!response.ok) {
-    throw new Error(errorMessage(body, 'Could not upload this document.'));
+    throwAuthError(body, response.status, 'Could not upload this document.');
   }
 
   return body ?? {};
@@ -297,7 +326,7 @@ export async function saveShopBusinessDetails(
 
   const body = await parseJson(response);
   if (!response.ok) {
-    throw new Error(errorMessage(body, 'Could not save your business details.'));
+    throwAuthError(body, response.status, 'Could not save your business details.');
   }
 
   return body ?? {};
@@ -316,7 +345,7 @@ export async function verifyShopUpi(upiId: string, bearerToken: string) {
 
   const body = await parseJson(response);
   if (!response.ok) {
-    throw new Error(errorMessage(body, 'Could not verify this UPI ID.'));
+    throwAuthError(body, response.status, 'Could not verify this UPI ID.');
   }
 
   return body ?? {};
@@ -344,7 +373,7 @@ export async function saveShopBankDetails(
 
   const body = await parseJson(response);
   if (!response.ok) {
-    throw new Error(errorMessage(body, 'Could not save your bank details.'));
+    throwAuthError(body, response.status, 'Could not save your bank details.');
   }
 
   return body ?? {};
@@ -363,7 +392,7 @@ export async function submitShopOnboarding(bearerToken: string) {
 
   const body = await parseJson(response);
   if (!response.ok) {
-    throw new Error(errorMessage(body, 'Could not submit your application.'));
+    throwAuthError(body, response.status, 'Could not submit your application.');
   }
 
   return body ?? {};

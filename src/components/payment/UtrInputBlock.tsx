@@ -1,4 +1,6 @@
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+
+import { AppTextInput } from '@/components/AppTextInput';
 
 import { colors, spacing, typography } from '@/constants/theme';
 import type { ConfirmUtrFieldMode } from '@/lib/utr-validation';
@@ -29,7 +31,7 @@ export function UtrInputBlock({
       {useFullOnly ? (
         <>
           <Text style={styles.hint}>Enter the full 12-digit UTR from your UPI app.</Text>
-          <TextInput
+          <AppTextInput
             value={full12}
             onChangeText={onFull12Change}
             placeholder="12-digit UTR"
@@ -45,7 +47,7 @@ export function UtrInputBlock({
           {mode.hintLast4 ? (
             <Text style={styles.hint}>Enter the last 4 digits of the UTR{mode.balanceMode ? ' (balance payment)' : ''}.</Text>
           ) : null}
-          <TextInput
+          <AppTextInput
             value={last4}
             onChangeText={onLast4Change}
             placeholder="Last 4 of UTR"
