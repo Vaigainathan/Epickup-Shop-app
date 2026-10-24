@@ -11,7 +11,7 @@
       "icon": "./assets/images/epickup_shop_logo_1024.png"
     },
     "android": {
-      "versionCode": 5,
+      "versionCode": 6,
       "package": "com.epickup.shop",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
