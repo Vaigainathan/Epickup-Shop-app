@@ -89,7 +89,8 @@ export default function StorefrontScreen() {
     if (!timeTarget) return '09:00';
     const day = week[timeTarget.day];
     if (day.state !== 'open') return '09:00';
-    return timeTarget.field === 'open' ? day.open : day.close;
+    if (timeTarget.field === 'open') return day.open || '09:00';
+    return day.close || '21:00';
   }, [timeTarget, week]);
 
   function setDay(dayKey: WeekdayKey, next: DayDraft) {
@@ -262,31 +263,31 @@ export default function StorefrontScreen() {
           {WEEKDAY_KEYS.map((dayKey) => {
             const day = week[dayKey];
             const dayError = day.state === 'open' ? validateDayDraft(day) : null;
-            const closed = day.state === 'closed';
-            const openTimes = day.state === 'open' ? day : null;
+            const isDayOpen = day.state === 'open';
+            const switchLabel = day.state === 'closed' ? 'Closed' : 'Open';
             return (
               <View key={dayKey} style={styles.dayRow}>
                 <Text style={styles.dayLabel}>{WEEKDAY_LABELS[dayKey]}</Text>
                 <View style={styles.dayControls}>
-                  <Text style={styles.closedLabel}>Closed</Text>
+                  <Text style={styles.switchLabel}>{switchLabel}</Text>
                   <Switch
-                    value={closed}
+                    value={isDayOpen}
                     onValueChange={(value) => {
-                      if (value) setDay(dayKey, { state: 'closed' });
-                      else setDay(dayKey, { state: 'open', open: '09:00', close: '21:00' });
+                      if (value) setDay(dayKey, { state: 'open', open: '09:00', close: '21:00' });
+                      else setDay(dayKey, { state: 'closed' });
                     }}
                     trackColor={{ false: colors.border, true: colors.accent }}
                     thumbColor={colors.white}
                   />
                 </View>
-                {!closed ? (
+                {day.state === 'open' ? (
                   <View style={styles.timeRow}>
                     <Pressable
                       accessibilityRole="button"
                       onPress={() => setTimeTarget({ day: dayKey, field: 'open' })}
                       style={({ pressed }) => [styles.timeBtn, pressed && styles.pressed]}>
                       <Text style={styles.timeBtnLabel}>
-                        Open {openTimes ? formatHm12(openTimes.open) : '—'}
+                        Open {formatHm12(day.open)}
                       </Text>
                     </Pressable>
                     <Pressable
@@ -294,12 +295,12 @@ export default function StorefrontScreen() {
                       onPress={() => setTimeTarget({ day: dayKey, field: 'close' })}
                       style={({ pressed }) => [styles.timeBtn, pressed && styles.pressed]}>
                       <Text style={styles.timeBtnLabel}>
-                        Close {openTimes ? formatHm12(openTimes.close) : '—'}
+                        Close {formatHm12(day.close)}
                       </Text>
                     </Pressable>
                   </View>
                 ) : null}
-                {openTimes && isOvernightOpenClose(openTimes.open, openTimes.close) ? (
+                {day.state === 'open' && isOvernightOpenClose(day.open, day.close) ? (
                   <Text style={styles.overnight}>Closes next day</Text>
                 ) : null}
                 {dayError ? <Text style={styles.dayError}>{dayError}</Text> : null}
@@ -337,8 +338,8 @@ export default function StorefrontScreen() {
           if (current.state !== 'open') return;
           const next =
             timeTarget.field === 'open'
-              ? { ...current, open: hm }
-              : { ...current, close: hm };
+              ? { ...current, open: hm, close: current.close || '21:00' }
+              : { ...current, close: hm, open: current.open || '09:00' };
           setDay(timeTarget.day, next);
           setTimeTarget(null);
         }}
@@ -472,7 +473,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  closedLabel: {
+  switchLabel: {
     fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
     color: colors.textSecondary,

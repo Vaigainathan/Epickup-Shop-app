@@ -153,13 +153,22 @@ export default function DashboardScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <View style={styles.headerBrand}>
-          <Image source={logo} style={styles.logo} contentFit="contain" />
-          <Text numberOfLines={1} style={styles.headerTitle}>
-            ePickup Shop
-          </Text>
-        </View>
-        <View style={styles.headerActions}>
+        <View style={styles.headerMain}>
+          <View style={styles.headerTopRow}>
+            <View style={styles.headerBrand}>
+              <Image source={logo} style={styles.logo} contentFit="contain" />
+              <Text numberOfLines={1} style={styles.headerTitle}>
+                ePickup Shop
+              </Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Settings"
+              onPress={openSettings}
+              style={({ pressed }) => [styles.profileButton, pressed && styles.pressed]}>
+              <MaterialCommunityIcons name="account-outline" size={16} color={colors.white} />
+            </Pressable>
+          </View>
           <View style={[styles.openPill, !isOpen && styles.openPillClosed]}>
             <View style={[styles.openDot, !isOpen && styles.openDotClosed]} />
             <Text
@@ -168,13 +177,6 @@ export default function DashboardScreen() {
               {openIndicator}
             </Text>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Settings"
-            onPress={openSettings}
-            style={({ pressed }) => [styles.profileButton, pressed && styles.pressed]}>
-            <MaterialCommunityIcons name="account-outline" size={16} color={colors.white} />
-          </Pressable>
         </View>
       </View>
 
@@ -374,12 +376,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    height: 64,
+    paddingHorizontal: spacing.screen,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.overlayHeader,
+  },
+  headerMain: {
+    flex: 1,
+    minWidth: 0,
+    gap: spacing.xs,
+  },
+  headerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.screen,
-    backgroundColor: colors.overlayHeader,
+    gap: spacing.sm,
   },
   headerBrand: {
     flex: 1,
@@ -394,28 +403,24 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   headerTitle: {
-    flexShrink: 1,
+    flex: 1,
+    minWidth: 0,
     fontSize: typography.sizes.headingSm,
     lineHeight: typography.lineHeights.headingSm,
     fontFamily: typography.fonts.semibold,
     color: colors.primary,
   },
-  headerActions: {
-    flexShrink: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
   openPill: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-start',
     gap: spacing.xs,
     backgroundColor: colors.overlayTrust,
     borderRadius: 9999,
     paddingVertical: spacing.xs,
     paddingLeft: 12,
     paddingRight: 14,
-    flexShrink: 0,
+    marginLeft: 32 + spacing.sm,
   },
   openPillClosed: {
     backgroundColor: colors.overlayPrimary,
