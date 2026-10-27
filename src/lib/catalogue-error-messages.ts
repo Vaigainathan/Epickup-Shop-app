@@ -6,6 +6,7 @@ const CATALOGUE_CODES: Record<string, string> = {
     'This category still has products. Reassign or delete those products first.',
   CATEGORY_NOT_FOUND: 'Category not found.',
   PRODUCT_NOT_FOUND: 'Product not found.',
+  AVAILABILITY_CONFLICT: 'This product’s availability could not be updated. Try again.',
   VALIDATION: 'Check the details you entered and try again.',
   INVALID_RESPONSE: GENERIC_API_ERROR,
 };

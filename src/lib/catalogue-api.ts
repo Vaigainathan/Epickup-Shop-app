@@ -49,6 +49,7 @@ export type ShopProduct = {
   price: number;
   unitType: string;
   isActive: boolean;
+  soldOut: boolean;
   stock: number;
   photoUrl: string | null;
   categoryId: string | null;
@@ -256,6 +257,7 @@ function parseProduct(value: unknown): ShopProduct | null {
     price,
     unitType,
     isActive: readBoolean(record, ['isActive']) ?? true,
+    soldOut: readBoolean(record, ['soldOut']) ?? false,
     stock: readNumber(record, ['stock']) ?? 0,
     photoUrl: readString(record, ['photoUrl']),
     categoryId: readString(record, ['categoryId']),
@@ -441,4 +443,19 @@ export async function updateShopProductStock(
     },
     'Could not update stock.',
   );
+}
+
+export async function patchProductAvailability(
+  id: string,
+  input: { soldOut: boolean },
+): Promise<ShopProduct> {
+  const body = await requestJson(
+    `/api/shop/products/${encodeURIComponent(id)}/availability`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    },
+    'Could not update availability.',
+  );
+  return parseProductPayload(body);
 }

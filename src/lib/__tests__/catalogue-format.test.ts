@@ -1,6 +1,13 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { priceOverridePlaceholder } from '@/lib/catalogue-format';
+import { priceOverridePlaceholder, productAvailabilityLabel } from '@/lib/catalogue-format';
+
+describe('productAvailabilityLabel', () => {
+  it('returns Available or Sold out', () => {
+    expect(productAvailabilityLabel(false)).toBe('Available');
+    expect(productAvailabilityLabel(true)).toBe('Sold out');
+  });
+});
 
 describe('priceOverridePlaceholder', () => {
   it('includes formatted base price', () => {

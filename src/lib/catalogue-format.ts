@@ -9,6 +9,10 @@ export function productShopVisibilityLabel(isActive: boolean): string {
   return isActive ? 'Show in shop' : 'Hidden from shop';
 }
 
+export function productAvailabilityLabel(soldOut: boolean): string {
+  return soldOut ? 'Sold out' : 'Available';
+}
+
 export function priceOverridePlaceholder(basePrice: number | null): string {
   if (basePrice === null || !Number.isFinite(basePrice)) {
     return 'Leave blank to use product price';

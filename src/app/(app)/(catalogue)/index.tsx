@@ -7,6 +7,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from 'react-native';
@@ -15,12 +16,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppTextInput } from '@/components/AppTextInput';
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
-import { productShopVisibilityLabel } from '@/lib/catalogue-format';
+import { productAvailabilityLabel, productShopVisibilityLabel } from '@/lib/catalogue-format';
 import { catalogueErrorMessage } from '@/lib/catalogue-error-messages';
 import {
-  CatalogueApiError,
   fetchShopCategories,
   fetchShopProducts,
+  patchProductAvailability,
   ShopCategory,
   ShopProduct,
 } from '@/lib/catalogue-api';
@@ -55,6 +56,8 @@ export default function CatalogueScreen() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState(ALL_ITEMS);
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
+  const [availabilityBusyId, setAvailabilityBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -107,6 +110,41 @@ export default function CatalogueScreen() {
     router.push(`/(app)/(catalogue)/product-details?id=${encodeURIComponent(id)}` as Href);
   }
 
+  const setProductSoldOut = useCallback(async (productId: string, soldOut: boolean) => {
+    let previousSoldOut: boolean | undefined;
+
+    setProducts((current) => {
+      const match = current.find((item) => item.id === productId);
+      if (!match) return current;
+      previousSoldOut = match.soldOut;
+      return current.map((item) => (item.id === productId ? { ...item, soldOut } : item));
+    });
+
+    if (previousSoldOut === undefined) return;
+
+    setAvailabilityError(null);
+    setAvailabilityBusyId(productId);
+
+    try {
+      const updated = await patchProductAvailability(productId, { soldOut });
+      setProducts((current) =>
+        current.map((item) => (item.id === productId ? { ...item, ...updated } : item)),
+      );
+    } catch (patchError) {
+      const rollback = previousSoldOut;
+      setProducts((current) =>
+        current.map((item) =>
+          item.id === productId ? { ...item, soldOut: rollback } : item,
+        ),
+      );
+      setAvailabilityError(
+        catalogueErrorMessage(patchError, 'Could not update availability. Try again.'),
+      );
+    } finally {
+      setAvailabilityBusyId(null);
+    }
+  }, []);
+
   if (loading && products.length === 0 && categories.length === 0) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -149,25 +187,32 @@ export default function CatalogueScreen() {
         />
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chips}
-        style={styles.chipRow}>
-        <CategoryChip
-          label="All items"
-          selected={selectedCategoryId === ALL_ITEMS}
-          onPress={() => setSelectedCategoryId(ALL_ITEMS)}
-        />
-        {categories.map((category) => (
+      <View style={styles.chipRow} collapsable={false}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chips}>
           <CategoryChip
-            key={category.id}
-            label={category.name}
-            selected={selectedCategoryId === category.id}
-            onPress={() => setSelectedCategoryId(category.id)}
+            label="All items"
+            selected={selectedCategoryId === ALL_ITEMS}
+            onPress={() => setSelectedCategoryId(ALL_ITEMS)}
           />
-        ))}
-      </ScrollView>
+          {categories.map((category) => (
+            <CategoryChip
+              key={category.id}
+              label={category.name}
+              selected={selectedCategoryId === category.id}
+              onPress={() => setSelectedCategoryId(category.id)}
+            />
+          ))}
+        </ScrollView>
+      </View>
+
+      {availabilityError ? (
+        <View style={styles.availabilityBanner}>
+          <Text style={styles.availabilityBannerText}>{availabilityError}</Text>
+        </View>
+      ) : null}
 
       {isEmptyCatalogue ? (
         <View style={styles.empty}>
@@ -196,56 +241,80 @@ export default function CatalogueScreen() {
             <Text style={styles.noMatches}>No matching products</Text>
           }
           renderItem={({ item }) => (
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => openProduct(item.id)}
-              style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
-              {item.photoUrl ? (
-                <Image source={{ uri: item.photoUrl }} style={styles.photo} contentFit="cover" />
-              ) : (
-                <View style={styles.photoFallback} />
-              )}
-              <View style={styles.cardMeta}>
-                <View style={styles.cardTopRow}>
-                  {item.hasVariants ? (
-                    allVariantsOutOfStock(item) ? (
-                      <View style={[styles.stockPill, styles.stockPillOut]}>
-                        <Text style={[styles.stockText, styles.stockTextOut]}>Out of Stock</Text>
-                      </View>
-                    ) : (
-                      <View style={styles.badgeRow}>
-                        <View style={styles.optionsPill}>
-                          <Text style={styles.optionsText}>
-                            {item.variants.length}{' '}
-                            {item.variants.length === 1 ? 'option' : 'options'}
-                          </Text>
-                        </View>
-                        {someVariantOutOfStock(item) ? (
-                          <MaterialCommunityIcons
-                            name="alert-circle-outline"
-                            size={16}
-                            color={colors.error}
-                            accessibilityLabel="A variant is out of stock"
-                          />
-                        ) : null}
-                      </View>
-                    )
+            <View style={[styles.card, item.soldOut && styles.cardSoldOut]}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => openProduct(item.id)}
+                style={({ pressed }) => [styles.cardPressable, pressed && styles.pressed]}>
+                <View style={styles.photoShell}>
+                  {item.photoUrl ? (
+                    <Image source={{ uri: item.photoUrl }} style={styles.photo} contentFit="cover" />
                   ) : (
-                    <View style={[styles.stockPill, !item.isActive && styles.stockPillOut]}>
-                      <Text style={[styles.stockText, !item.isActive && styles.stockTextOut]}>
-                        {productShopVisibilityLabel(item.isActive)}
-                      </Text>
-                    </View>
+                    <View style={styles.photoFallback} />
                   )}
-                  <Text style={styles.price}>
-                    {formatPrice(item.price)} / {item.unitType}
+                  {item.soldOut ? (
+                    <View style={styles.soldOutBadge}>
+                      <Text style={styles.soldOutBadgeText}>Sold out</Text>
+                    </View>
+                  ) : null}
+                </View>
+                <View style={styles.cardMeta}>
+                  <View style={styles.cardTopRow}>
+                    {item.hasVariants ? (
+                      allVariantsOutOfStock(item) ? (
+                        <View style={[styles.stockPill, styles.stockPillOut]}>
+                          <Text style={[styles.stockText, styles.stockTextOut]}>Out of Stock</Text>
+                        </View>
+                      ) : (
+                        <View style={styles.badgeRow}>
+                          <View style={styles.optionsPill}>
+                            <Text style={styles.optionsText}>
+                              {item.variants.length}{' '}
+                              {item.variants.length === 1 ? 'option' : 'options'}
+                            </Text>
+                          </View>
+                          {someVariantOutOfStock(item) ? (
+                            <MaterialCommunityIcons
+                              name="alert-circle-outline"
+                              size={16}
+                              color={colors.error}
+                              accessibilityLabel="A variant is out of stock"
+                            />
+                          ) : null}
+                        </View>
+                      )
+                    ) : (
+                      <View style={[styles.stockPill, !item.isActive && styles.stockPillOut]}>
+                        <Text style={[styles.stockText, !item.isActive && styles.stockTextOut]}>
+                          {productShopVisibilityLabel(item.isActive)}
+                        </Text>
+                      </View>
+                    )}
+                    <Text style={styles.price}>
+                      {formatPrice(item.price)} / {item.unitType}
+                    </Text>
+                  </View>
+                  <Text style={styles.productName} numberOfLines={2}>
+                    {item.name}
                   </Text>
                 </View>
-                <Text style={styles.productName} numberOfLines={2}>
-                  {item.name}
+              </Pressable>
+              <View style={styles.availabilityRow}>
+                <Text
+                  style={[styles.availabilityLabel, item.soldOut && styles.availabilityLabelSoldOut]}>
+                  {productAvailabilityLabel(item.soldOut)}
                 </Text>
+                <Switch
+                  accessibilityLabel={`Mark ${item.name} as sold out`}
+                  value={!item.soldOut}
+                  onValueChange={(available) => setProductSoldOut(item.id, !available)}
+                  disabled={availabilityBusyId === item.id}
+                  trackColor={{ false: colors.border, true: colors.accent }}
+                  thumbColor={colors.white}
+                  ios_backgroundColor={colors.border}
+                />
               </View>
-            </Pressable>
+            </View>
           )}
         />
       )}
@@ -329,18 +398,23 @@ const styles = StyleSheet.create({
   },
   chipRow: {
     flexGrow: 0,
+    flexShrink: 0,
+    minHeight: 48,
     marginTop: spacing.md,
 },
   chips: {
+    alignItems: 'center',
     paddingHorizontal: spacing.screen,
     gap: spacing.sm,
     paddingBottom: spacing.sm,
   },
   chip: {
     flexShrink: 0,
+    minHeight: 48,
+    justifyContent: 'center',
     backgroundColor: colors.tintSoft,
     borderRadius: 9999,
-    paddingVertical: spacing.sm,
+    paddingVertical: 10,
     paddingLeft: spacing.md,
     paddingRight: 18,
 },
@@ -353,7 +427,21 @@ const styles = StyleSheet.create({
     fontFamily: typography.fonts.semibold,
     letterSpacing: typography.letterSpacing.button,
     color: colors.textSecondary,
+    includeFontPadding: false,
   },
+  availabilityBanner: {
+    marginHorizontal: spacing.screen,
+    marginTop: spacing.sm,
+    backgroundColor: colors.overlayPrimary,
+    borderRadius: 12,
+    padding: spacing.md,
+},
+  availabilityBannerText: {
+    fontSize: typography.sizes.body,
+    lineHeight: typography.lineHeights.body,
+    fontFamily: typography.fonts.regular,
+    color: colors.error,
+},
   chipLabelSelected: {
     color: colors.white,
   },
@@ -418,13 +506,61 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.surface,
     borderRadius: 12,
-    padding: 12,
-    gap: spacing.sm,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 1,
     elevation: 1,
+  },
+  cardSoldOut: {
+    opacity: 0.88,
+    borderWidth: 1,
+    borderColor: colors.overlayPrimary,
+  },
+  cardPressable: {
+    padding: 12,
+    gap: spacing.sm,
+  },
+  photoShell: {
+    position: 'relative',
+},
+  soldOutBadge: {
+    position: 'absolute',
+    left: spacing.sm,
+    top: spacing.sm,
+    backgroundColor: colors.overlayStatus,
+    borderRadius: 9999,
+    paddingVertical: 2,
+    paddingHorizontal: spacing.sm,
+},
+  soldOutBadgeText: {
+    fontSize: typography.sizes.label,
+    lineHeight: typography.lineHeights.label,
+    fontFamily: typography.fonts.semibold,
+    color: colors.white,
+    includeFontPadding: false,
+  },
+  availabilityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.overlayPrimary,
+    backgroundColor: colors.background,
+},
+  availabilityLabel: {
+    flex: 1,
+    fontSize: typography.sizes.label,
+    lineHeight: typography.lineHeights.label,
+    fontFamily: typography.fonts.medium,
+    color: colors.success,
+    includeFontPadding: false,
+  },
+  availabilityLabelSoldOut: {
+    color: colors.error,
   },
   photo: {
     width: '100%',

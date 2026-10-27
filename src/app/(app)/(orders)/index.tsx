@@ -480,6 +480,7 @@ const styles = StyleSheet.create({
     lineHeight: typography.lineHeights.body,
     fontFamily: typography.fonts.semibold,
     color: colors.textSecondary,
+    includeFontPadding: false,
   },
   chipLabelSelected: {
     color: colors.white,

@@ -20,6 +20,7 @@ import { colors, spacing, typography } from '@/constants/theme';
 import { catalogueErrorMessage } from '@/lib/catalogue-error-messages';
 import {
   MIXED_OPTION_NAMES_NOTE,
+  productAvailabilityLabel,
   productShopVisibilityLabel,
 } from '@/lib/catalogue-format';
 import { hasMixedAttributeLabels } from '@/lib/variant-option-name';
@@ -28,6 +29,7 @@ import {
   deleteShopProduct,
   fetchShopCategories,
   fetchShopProduct,
+  patchProductAvailability,
   ShopProduct,
   ShopProductVariant,
   updateShopProductStock,
@@ -104,6 +106,8 @@ export default function ProductDetailsScreen() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [removedOpen, setRemovedOpen] = useState(false);
+  const [availabilityBusy, setAvailabilityBusy] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const restoreRef = useRef<number[]>([]);
   const removedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -153,6 +157,29 @@ export default function ProductDetailsScreen() {
       pathname: '/(app)/(catalogue)/add-product',
       params: { id: productId },
     } as Href);
+  }
+
+  async function setSoldOutAvailability(soldOut: boolean) {
+    if (!productId || !product || availabilityBusy || saving || deleting) return;
+
+    const previousSoldOut = product.soldOut;
+    setAvailabilityError(null);
+    setAvailabilityBusy(true);
+    setProduct({ ...product, soldOut });
+
+    try {
+      const updated = await patchProductAvailability(productId, { soldOut });
+      setProduct(updated);
+    } catch (patchError) {
+      setProduct((current) =>
+        current ? { ...current, soldOut: previousSoldOut } : current,
+      );
+      setAvailabilityError(
+        catalogueErrorMessage(patchError, 'Could not update availability. Try again.'),
+      );
+    } finally {
+      setAvailabilityBusy(false);
+    }
   }
 
   function openStock() {
@@ -311,6 +338,11 @@ export default function ProductDetailsScreen() {
               {productShopVisibilityLabel(product.isActive)}
             </Text>
           </View>
+          {product.soldOut ? (
+            <View style={[styles.stockPill, styles.stockPillOut, styles.soldOutHeroPill]}>
+              <Text style={[styles.stockText, styles.stockTextOut]}>Sold out</Text>
+            </View>
+          ) : null}
         </View>
 
         <Text style={styles.name}>{product.name}</Text>
@@ -322,6 +354,36 @@ export default function ProductDetailsScreen() {
         <View style={styles.card}>
           <Text style={styles.cardLabel}>Category</Text>
           <Text style={styles.cardValue}>{categoryName ?? '—'}</Text>
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.availabilityHeader}>
+            <View style={styles.flex}>
+              <Text style={styles.cardLabel}>Availability</Text>
+              <Text style={styles.cardSubtitle}>
+                Sold out stops customers from ordering this item
+              </Text>
+            </View>
+            <Switch
+              accessibilityLabel="Product available for orders"
+              value={!product.soldOut}
+              onValueChange={(available) => setSoldOutAvailability(!available)}
+              disabled={availabilityBusy || saving || deleting}
+              trackColor={{ false: colors.border, true: colors.accent }}
+              thumbColor={colors.white}
+              ios_backgroundColor={colors.border}
+            />
+          </View>
+          <Text
+            style={[
+              styles.availabilityStatus,
+              product.soldOut && styles.availabilityStatusSoldOut,
+            ]}>
+            {productAvailabilityLabel(product.soldOut)}
+          </Text>
+          {availabilityError ? (
+            <Text style={styles.availabilityError}>{availabilityError}</Text>
+          ) : null}
         </View>
 
         <View style={styles.card}>
@@ -642,6 +704,9 @@ const styles = StyleSheet.create({
   stockPillOut: {
     backgroundColor: colors.overlayPrimary,
   },
+  soldOutHeroPill: {
+    top: 36,
+  },
   stockText: {
     fontSize: typography.sizes.label,
     lineHeight: typography.lineHeights.label,
@@ -684,6 +749,34 @@ const styles = StyleSheet.create({
     letterSpacing: typography.letterSpacing.label,
     color: colors.textSecondary,
     textTransform: 'uppercase',
+  },
+  cardSubtitle: {
+    fontSize: typography.sizes.body,
+    lineHeight: typography.lineHeights.body,
+    fontFamily: typography.fonts.regular,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
+  },
+  availabilityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  availabilityStatus: {
+    fontSize: typography.sizes.body,
+    lineHeight: typography.lineHeights.body,
+    fontFamily: typography.fonts.semibold,
+    color: colors.success,
+  },
+  availabilityStatusSoldOut: {
+    color: colors.error,
+  },
+  availabilityError: {
+    fontSize: typography.sizes.body,
+    lineHeight: typography.lineHeights.body,
+    fontFamily: typography.fonts.regular,
+    color: colors.error,
+    marginTop: spacing.xs,
   },
   cardValue: {
     fontSize: typography.sizes.input,
