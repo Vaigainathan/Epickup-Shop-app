@@ -1,10 +1,16 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Href, Tabs, router, useSegments } from 'expo-router';
 import { type ColorValue, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ShopAppHeader } from '@/components/ShopAppHeader';
 import { ShopPushProvider } from '@/components/ShopPushProvider';
 import { colors, spacing, typography } from '@/constants/theme';
+import {
+  ShopOpenStatusProvider,
+  useShopOpenStatus,
+  useShowShopTabHeader,
+} from '@/lib/shop-open-status-context';
 
 const TAB_BAR_CONTENT_HEIGHT = 64;
 const TAB_ICON_SIZE = 26;
@@ -18,22 +24,37 @@ function TabIcon({
   name: keyof typeof MaterialCommunityIcons.glyphMap;
   color: ColorValue;
 }) {
-  return (
-    <View style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}>
-      <MaterialCommunityIcons name={name} color={color} size={TAB_ICON_SIZE} />
-    </View>
-  );
+  return <MaterialCommunityIcons name={name} color={color} size={TAB_ICON_SIZE} />;
 }
 
-export default function AppTabsLayout() {
+function AppTabShell() {
   const insets = useSafeAreaInsets();
   const bottomInset = insets.bottom;
+  const showHeader = useShowShopTabHeader();
+  const { status } = useShopOpenStatus();
+  const segments = useSegments();
+  const isDashboard = segments[1] === '(dashboard)';
 
   return (
-    <ShopPushProvider>
-      <Tabs
-        screenOptions={{
+    <View style={{ flex: 1 }}>
+      {showHeader ? (
+        <ShopAppHeader
+          status={status}
+          onProfilePress={() => {
+            if (isDashboard) {
+              router.push('/(app)/(settings)' as Href);
+            } else {
+              router.push('/(app)/(settings)/account' as Href);
+            }
+          }}
+          profileAccessibilityLabel={isDashboard ? 'Settings' : 'Profile'}
+        />
+      ) : null}
+      <View style={{ flex: 1 }}>
+        <Tabs
+          screenOptions={{
           headerShown: false,
+          lazy: true,
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.textMuted,
           tabBarStyle: {
@@ -89,7 +110,18 @@ export default function AppTabsLayout() {
           }}
         />
         <Tabs.Screen name="(refunds)" options={{ href: null }} />
-      </Tabs>
+        </Tabs>
+      </View>
+    </View>
+  );
+}
+
+export default function AppTabsLayout() {
+  return (
+    <ShopPushProvider>
+      <ShopOpenStatusProvider>
+        <AppTabShell />
+      </ShopOpenStatusProvider>
     </ShopPushProvider>
   );
 }

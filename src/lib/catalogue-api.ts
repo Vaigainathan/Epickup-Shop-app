@@ -55,7 +55,24 @@ export type ShopProduct = {
   categoryId: string | null;
   hasVariants: boolean;
   variants: ShopProductVariant[];
+  updatedAt?: string | null;
 };
+
+export type ProductAvailabilityPatch = {
+  soldOut: boolean;
+  updatedAt?: string | null;
+};
+
+export function mergeProductAvailability(
+  product: ShopProduct,
+  patch: ProductAvailabilityPatch,
+): ShopProduct {
+  return {
+    ...product,
+    soldOut: patch.soldOut,
+    ...(patch.updatedAt !== undefined ? { updatedAt: patch.updatedAt } : {}),
+  };
+}
 
 export type ProductPhotoFile = {
   uri: string;
@@ -275,6 +292,17 @@ function parseProductPayload(body: JsonRecord | null): ShopProduct {
   return product;
 }
 
+function parseProductAvailabilityPatch(body: JsonRecord | null): ProductAvailabilityPatch {
+  const data = nestedData(body) ?? body ?? {};
+  const record = asRecord(data.product) ?? asRecord(data) ?? data;
+  const soldOut = readBoolean(record, ['soldOut']);
+  if (soldOut === null) {
+    throw new CatalogueApiError('Availability response was missing.', 500, 'INVALID_RESPONSE');
+  }
+  const updatedAt = readString(record, ['updatedAt']);
+  return updatedAt !== null ? { soldOut, updatedAt } : { soldOut };
+}
+
 function serializeVariants(variants: ShopProductVariant[]) {
   return variants.map((variant) => {
     const payload: Record<string, unknown> = {
@@ -448,7 +476,7 @@ export async function updateShopProductStock(
 export async function patchProductAvailability(
   id: string,
   input: { soldOut: boolean },
-): Promise<ShopProduct> {
+): Promise<ProductAvailabilityPatch> {
   const body = await requestJson(
     `/api/shop/products/${encodeURIComponent(id)}/availability`,
     {
@@ -457,5 +485,5 @@ export async function patchProductAvailability(
     },
     'Could not update availability.',
   );
-  return parseProductPayload(body);
+  return parseProductAvailabilityPatch(body);
 }

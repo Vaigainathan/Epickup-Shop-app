@@ -1,7 +1,43 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { formatOpensAtLabel, formatShopOpenIndicator } from '@/lib/shop-open-indicator';
+import { shopOpenChipVariant } from '@/lib/shop-open-chip';
 import { formatIstTime } from '@/lib/shop-order-types';
+
+describe('shopOpenChipVariant', () => {
+  it('returns manuallyClosed when toggle off', () => {
+    expect(
+      shopOpenChipVariant({
+        isOpen: false,
+        isOpenNow: false,
+        opensAt: null,
+        closesAt: null,
+      }),
+    ).toBe('manuallyClosed');
+  });
+
+  it('returns openNow when open and within hours', () => {
+    expect(
+      shopOpenChipVariant({
+        isOpen: true,
+        isOpenNow: true,
+        opensAt: null,
+        closesAt: null,
+      }),
+    ).toBe('openNow');
+  });
+
+  it('returns outsideHours when open but not open now', () => {
+    expect(
+      shopOpenChipVariant({
+        isOpen: true,
+        isOpenNow: false,
+        opensAt: new Date('2026-01-15T14:00:00+05:30'),
+        closesAt: null,
+      }),
+    ).toBe('outsideHours');
+  });
+});
 
 describe('formatShopOpenIndicator', () => {
   it('shows closed when toggle off', () => {

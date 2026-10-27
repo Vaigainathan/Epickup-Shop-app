@@ -15,7 +15,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppTextInput } from '@/components/AppTextInput';
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
-import { fetchShopProfile } from '@/lib/dashboard-api';
 import {
   fetchShopOrders,
   formatDisplayId,
@@ -29,10 +28,8 @@ import {
   showRefundDuePill,
 } from '@/lib/orders-api';
 import { subscribeOrdersRefresh } from '@/lib/orders-refresh';
-import { formatShopOpenIndicator } from '@/lib/shop-open-indicator';
 import { orderNeedsWarningPill } from '@/lib/shop-order-actions';
 
-const logo = require('@/assets/images/login/logo.png');
 const emptyIllustration = require('@/assets/images/orders/empty-orders.png');
 
 const FILTERS: { key: OrdersListFilter; label: string }[] = [
@@ -87,10 +84,6 @@ export default function OrdersScreen() {
   const lastStatusParam = useRef<string | undefined>(undefined);
   const [filter, setFilter] = useState<OrdersListFilter>(() => paramStatus(params.status));
   const [orders, setOrders] = useState<ShopOrder[]>([]);
-  const [isOpen, setIsOpen] = useState(false);
-  const [isOpenNow, setIsOpenNow] = useState(false);
-  const [opensAt, setOpensAt] = useState<Date | null>(null);
-  const [closesAt, setClosesAt] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -100,17 +93,8 @@ export default function OrdersScreen() {
     setError(null);
     if (replaceList) setOrders([]);
     try {
-      const [nextOrders, profile] = await Promise.all([
-        fetchShopOrders(nextFilter),
-        fetchShopProfile().catch(() => null),
-      ]);
+      const nextOrders = await fetchShopOrders(nextFilter);
       setOrders(nextOrders);
-      if (profile) {
-        setIsOpen(profile.isOpen);
-        setIsOpenNow(profile.isOpenNow);
-        setOpensAt(profile.opensAt);
-        setClosesAt(profile.closesAt);
-      }
     } catch (loadError) {
       setError(ordersScreenErrorMessage(loadError, 'Could not load orders.'));
     } finally {
@@ -155,7 +139,7 @@ export default function OrdersScreen() {
 
   if (loading && orders.length === 0) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
         <ScreenLoading />
       </SafeAreaView>
     );
@@ -163,7 +147,7 @@ export default function OrdersScreen() {
 
   if (error && orders.length === 0) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
         <ScreenError message={error} onRetry={() => load(filter)} />
       </SafeAreaView>
     );
@@ -171,32 +155,8 @@ export default function OrdersScreen() {
 
   const empty = emptyCopy(filter);
   const listEmpty = visible.length === 0;
-  const openIndicator = formatShopOpenIndicator({
-    isOpen,
-    isOpenNow,
-    opensAt,
-    closesAt,
-  });
-
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <View style={styles.headerBrand}>
-          <Image source={logo} style={styles.logo} contentFit="contain" />
-          <Text numberOfLines={1} style={styles.headerTitle}>
-            ePickup Shop
-          </Text>
-        </View>
-        <View style={[styles.openPill, !isOpen && styles.openPillClosed]}>
-          <View style={[styles.openDot, !isOpen && styles.openDotClosed]} />
-          <Text
-            numberOfLines={2}
-            style={[styles.openPillText, !isOpen && styles.openPillTextClosed]}>
-            {openIndicator}
-          </Text>
-        </View>
-      </View>
-
+    <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
       <Text style={styles.pageTitle}>Orders</Text>
 
       <View style={styles.searchShell}>
@@ -357,69 +317,6 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
 },
-  header: {
-    height: 64,
-    flexShrink: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.screen,
-    backgroundColor: colors.overlayHeader,
-},
-  headerBrand: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-},
-  logo: {
-    width: 32,
-    height: 32,
-    flexShrink: 0,
-},
-  headerTitle: {
-    flexShrink: 1,
-    fontSize: typography.sizes.headingSm,
-    lineHeight: typography.lineHeights.headingSm,
-    fontFamily: typography.fonts.semibold,
-    color: colors.primary,
-  },
-  openPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.overlayTrust,
-    borderRadius: 9999,
-    paddingVertical: spacing.xs,
-    paddingLeft: 12,
-    paddingRight: 14,
-    flexShrink: 0,
-},
-  openPillClosed: {
-    backgroundColor: colors.overlayPrimary,
-  },
-  openDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 9999,
-    backgroundColor: colors.accent,
-},
-  openDotClosed: {
-    backgroundColor: colors.textMuted,
-  },
-  openPillText: {
-    fontSize: typography.sizes.label,
-    lineHeight: typography.lineHeights.label,
-    fontFamily: typography.fonts.medium,
-    letterSpacing: 0,
-    color: colors.success,
-    includeFontPadding: false,
-    paddingRight: 2,
-  },
-  openPillTextClosed: {
-    color: colors.error,
-  },
   pageTitle: {
     flexShrink: 0,
     paddingHorizontal: spacing.screen,

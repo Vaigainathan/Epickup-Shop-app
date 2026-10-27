@@ -33,6 +33,7 @@ import {
 } from '@/lib/opening-hours';
 import {
   deleteStorefrontPhoto,
+  displayStorefrontPhotoUrl,
   fetchStorefront,
   storefrontErrorMessage,
   updateStorefront,
@@ -68,7 +69,7 @@ export default function StorefrontScreen() {
       const data = await fetchStorefront();
       setTagline(data.tagline ?? '');
       setWeek(weekDraftFromApi(data.openingHours));
-      setPhotoUrl(data.photoUrl ?? data.thumbUrl);
+      setPhotoUrl(displayStorefrontPhotoUrl(data));
     } catch (err) {
       setLoadError(storefrontErrorMessage(err, 'Could not load storefront.'));
     } finally {
@@ -111,7 +112,7 @@ export default function StorefrontScreen() {
       const data = await updateStorefront({ tagline: tagline.trim(), openingHours: apiWeek });
       setTagline(data.tagline ?? '');
       setWeek(weekDraftFromApi(data.openingHours));
-      setPhotoUrl(data.photoUrl ?? data.thumbUrl);
+      setPhotoUrl(displayStorefrontPhotoUrl(data));
     } catch (err) {
       setSaveError(storefrontErrorMessage(err, 'Could not save storefront.'));
     } finally {
@@ -122,6 +123,7 @@ export default function StorefrontScreen() {
   async function pickPhoto(fromCamera: boolean) {
     setPhotoBusy(true);
     setSaveError(null);
+    const previousUrl = photoUrl;
     try {
       const result = fromCamera
         ? await pickStorefrontPhotoFromCamera()
@@ -131,13 +133,15 @@ export default function StorefrontScreen() {
         return;
       }
       if (result.status !== 'picked') return;
+      setPhotoUrl(result.media.uri);
       const data = await uploadStorefrontPhoto({
         uri: result.media.uri,
         mimeType: result.media.mimeType,
         fileName: result.media.fileName,
       });
-      setPhotoUrl(data.photoUrl ?? data.thumbUrl);
+      setPhotoUrl(displayStorefrontPhotoUrl(data) ?? result.media.uri);
     } catch (err) {
+      setPhotoUrl(previousUrl);
       setSaveError(storefrontErrorMessage(err, 'Could not upload photo.'));
     } finally {
       setPhotoBusy(false);
@@ -149,7 +153,7 @@ export default function StorefrontScreen() {
     setSaveError(null);
     try {
       const data = await deleteStorefrontPhoto();
-      setPhotoUrl(data.photoUrl ?? data.thumbUrl);
+      setPhotoUrl(displayStorefrontPhotoUrl(data));
     } catch (err) {
       setSaveError(storefrontErrorMessage(err, 'Could not remove photo.'));
     } finally {

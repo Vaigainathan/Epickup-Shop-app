@@ -1,5 +1,4 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { Href, router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
@@ -24,8 +23,7 @@ import {
 import { dashboardErrorMessage } from '@/lib/dashboard-error-messages';
 import { fetchRefundsDueCount } from '@/lib/refunds-api';
 import { formatShopOpenIndicator } from '@/lib/shop-open-indicator';
-
-const logo = require('@/assets/images/login/logo.png');
+import { useShopOpenStatus } from '@/lib/shop-open-status-context';
 
 type OrderStatusKey = 'awaiting_payment' | 'preparing' | 'ready';
 
@@ -38,6 +36,7 @@ function formatEarnings(amount: number) {
 }
 
 export default function DashboardScreen() {
+  const { patchStatus } = useShopOpenStatus();
   const [shopName, setShopName] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [isOpenNow, setIsOpenNow] = useState(false);
@@ -68,6 +67,12 @@ export default function DashboardScreen() {
       setIsOpenNow(profile.isOpenNow);
       setOpensAt(profile.opensAt);
       setClosesAt(profile.closesAt);
+      patchStatus({
+        isOpen: profile.isOpen,
+        isOpenNow: profile.isOpenNow,
+        opensAt: profile.opensAt,
+        closesAt: profile.closesAt,
+      });
       setStats(nextStats);
       setProductCount(products.length);
       setRefundsDueCount(refundsCount);
@@ -76,7 +81,7 @@ export default function DashboardScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [patchStatus]);
 
   useFocusEffect(
     useCallback(() => {
@@ -93,6 +98,7 @@ export default function DashboardScreen() {
     try {
       const updated = await updateShopStatus(next);
       setIsOpen(updated);
+      patchStatus({ isOpen: updated });
     } catch (toggleError) {
       setStatusError(dashboardErrorMessage(toggleError, 'Could not update store status.'));
     } finally {
@@ -108,17 +114,13 @@ export default function DashboardScreen() {
     router.push('/(app)/(catalogue)/add-product' as Href);
   }
 
-  function openSettings() {
-    router.push('/(app)/(settings)' as Href);
-  }
-
   function openRefunds() {
     router.push('/(app)/(refunds)' as Href);
   }
 
   if (loading && !stats) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
         <ScreenLoading />
       </SafeAreaView>
     );
@@ -126,7 +128,7 @@ export default function DashboardScreen() {
 
   if (error && !stats) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
         <ScreenError message={error} onRetry={load} />
       </SafeAreaView>
     );
@@ -134,7 +136,7 @@ export default function DashboardScreen() {
 
   if (!stats) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
         <ScreenError message="Could not load your dashboard." onRetry={load} />
       </SafeAreaView>
     );
@@ -151,35 +153,7 @@ export default function DashboardScreen() {
   });
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <View style={styles.headerMain}>
-          <View style={styles.headerTopRow}>
-            <View style={styles.headerBrand}>
-              <Image source={logo} style={styles.logo} contentFit="contain" />
-              <Text numberOfLines={1} style={styles.headerTitle}>
-                ePickup Shop
-              </Text>
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Settings"
-              onPress={openSettings}
-              style={({ pressed }) => [styles.profileButton, pressed && styles.pressed]}>
-              <MaterialCommunityIcons name="account-outline" size={16} color={colors.white} />
-            </Pressable>
-          </View>
-          <View style={[styles.openPill, !isOpen && styles.openPillClosed]}>
-            <View style={[styles.openDot, !isOpen && styles.openDotClosed]} />
-            <Text
-              numberOfLines={2}
-              style={[styles.openPillText, !isOpen && styles.openPillTextClosed]}>
-              {openIndicator}
-            </Text>
-          </View>
-        </View>
-      </View>
-
+    <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
@@ -374,85 +348,6 @@ const styles = StyleSheet.create({
   },
   flex: {
     flex: 1,
-  },
-  header: {
-    paddingHorizontal: spacing.screen,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.overlayHeader,
-  },
-  headerMain: {
-    flex: 1,
-    minWidth: 0,
-    gap: spacing.xs,
-  },
-  headerTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  headerBrand: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  logo: {
-    width: 32,
-    height: 32,
-    flexShrink: 0,
-  },
-  headerTitle: {
-    flex: 1,
-    minWidth: 0,
-    fontSize: typography.sizes.headingSm,
-    lineHeight: typography.lineHeights.headingSm,
-    fontFamily: typography.fonts.semibold,
-    color: colors.primary,
-  },
-  openPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: spacing.xs,
-    backgroundColor: colors.overlayTrust,
-    borderRadius: 9999,
-    paddingVertical: spacing.xs,
-    paddingLeft: 12,
-    paddingRight: 14,
-    marginLeft: 32 + spacing.sm,
-  },
-  openPillClosed: {
-    backgroundColor: colors.overlayPrimary,
-  },
-  openDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 9999,
-    backgroundColor: colors.accent,
-  },
-  openDotClosed: {
-    backgroundColor: colors.textMuted,
-  },
-  openPillText: {
-    fontSize: typography.sizes.label,
-    lineHeight: typography.lineHeights.label,
-    fontFamily: typography.fonts.medium,
-    letterSpacing: 0,
-    color: colors.success,
-    includeFontPadding: false,
-    paddingRight: 2,
-  },
-  openPillTextClosed: {
-    color: colors.error,
-  },
-  profileButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 9999,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   content: {
     padding: spacing.screen,

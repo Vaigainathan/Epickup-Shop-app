@@ -1,5 +1,4 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { Href, router, useFocusEffect } from 'expo-router';
 import { getAuth } from '@react-native-firebase/auth';
 import { useCallback, useState } from 'react';
@@ -23,11 +22,9 @@ import {
 } from '@/lib/dashboard-api';
 import { settingsErrorMessage } from '@/lib/settings-error-messages';
 import { formatDisplayId, formatInr } from '@/lib/orders-api';
-import { formatShopOpenIndicator } from '@/lib/shop-open-indicator';
 import { unregisterShopPushBestEffort } from '@/lib/shop-push-registration';
 import { wipeShopSession } from '@/lib/session';
-
-const logo = require('@/assets/images/login/logo.png');
+import { useShopOpenStatus } from '@/lib/shop-open-status-context';
 
 function displayValue(value: string | null | undefined): string {
   const trimmed = value?.trim();
@@ -47,6 +44,7 @@ function maskUpi(upi: string): string {
 }
 
 export default function SettingsScreen() {
+  const { patchStatus } = useShopOpenStatus();
   const [profile, setProfile] = useState<ShopProfile | null>(null);
   const [payments, setPayments] = useState<PaymentHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,13 +62,19 @@ export default function SettingsScreen() {
         fetchPaymentHistory().catch(() => [] as PaymentHistoryItem[]),
       ]);
       setProfile(nextProfile);
+      patchStatus({
+        isOpen: nextProfile.isOpen,
+        isOpenNow: nextProfile.isOpenNow,
+        opensAt: nextProfile.opensAt,
+        closesAt: nextProfile.closesAt,
+      });
       setPayments(nextPayments.slice(0, 2));
     } catch (loadError) {
       setError(settingsErrorMessage(loadError, 'Could not load your settings.'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [patchStatus]);
 
   useFocusEffect(
     useCallback(() => {
@@ -110,7 +114,7 @@ export default function SettingsScreen() {
 
   if (loading && !profile) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
         <ScreenLoading />
       </SafeAreaView>
     );
@@ -118,7 +122,7 @@ export default function SettingsScreen() {
 
   if (error && !profile) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
         <ScreenError message={error} onRetry={load} />
       </SafeAreaView>
     );
@@ -126,7 +130,7 @@ export default function SettingsScreen() {
 
   if (!profile) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
         <ScreenError message="Could not load your settings." onRetry={load} />
       </SafeAreaView>
     );
@@ -134,43 +138,11 @@ export default function SettingsScreen() {
 
   const maskedUpi = profile.upiId ? maskUpi(profile.upiId) : '—';
   const last4 = profile.accountNumberLast4 ? `•••• ${profile.accountNumberLast4}` : '—';
-  const openIndicator = formatShopOpenIndicator({
-    isOpen: profile.isOpen,
-    isOpenNow: profile.isOpenNow,
-    opensAt: profile.opensAt,
-    closesAt: profile.closesAt,
-  });
   const registeredName = profile.upiRegisteredName?.trim() || '—';
   const upiVerifiedLabel = profile.upiNameVerified ? 'Verified' : 'Not verified';
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <View style={styles.headerBrand}>
-          <Image source={logo} style={styles.logo} contentFit="contain" />
-          <Text numberOfLines={1} style={styles.headerTitle}>
-            ePickup Shop
-          </Text>
-        </View>
-        <View style={styles.headerActions}>
-          <View style={[styles.openPill, !profile.isOpen && styles.openPillClosed]}>
-            <View style={[styles.openDot, !profile.isOpen && styles.openDotClosed]} />
-            <Text
-              numberOfLines={2}
-              style={[styles.openPillText, !profile.isOpen && styles.openPillTextClosed]}>
-              {openIndicator}
-            </Text>
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Profile"
-            onPress={() => router.push('/(app)/(settings)/account' as Href)}
-            style={({ pressed }) => [styles.profileButton, pressed && styles.pressed]}>
-            <MaterialCommunityIcons name="account-outline" size={16} color={colors.white} />
-          </Pressable>
-        </View>
-      </View>
-
+    <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.pageTitle}>Settings</Text>
 
@@ -339,82 +311,6 @@ const styles = StyleSheet.create({
   },
   flex: {
     flex: 1,
-  },
-  header: {
-    height: 64,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.screen,
-    backgroundColor: colors.overlayHeader,
-  },
-  headerBrand: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  logo: {
-    width: 32,
-    height: 32,
-    flexShrink: 0,
-  },
-  headerTitle: {
-    flexShrink: 1,
-    fontSize: typography.sizes.headingSm,
-    lineHeight: typography.lineHeights.headingSm,
-    fontFamily: typography.fonts.semibold,
-    color: colors.primary,
-  },
-  headerActions: {
-    flexShrink: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  openPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.overlayTrust,
-    borderRadius: 9999,
-    paddingVertical: spacing.xs,
-    paddingLeft: 12,
-    paddingRight: 14,
-    flexShrink: 0,
-  },
-  openPillClosed: {
-    backgroundColor: colors.overlayPrimary,
-  },
-  openDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 9999,
-    backgroundColor: colors.accent,
-  },
-  openDotClosed: {
-    backgroundColor: colors.textMuted,
-  },
-  openPillText: {
-    fontSize: typography.sizes.label,
-    lineHeight: typography.lineHeights.label,
-    fontFamily: typography.fonts.medium,
-    letterSpacing: 0,
-    color: colors.success,
-    includeFontPadding: false,
-    paddingRight: 2,
-  },
-  openPillTextClosed: {
-    color: colors.error,
-  },
-  profileButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 9999,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   content: {
     padding: spacing.screen,

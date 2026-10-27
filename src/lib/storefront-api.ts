@@ -21,9 +21,23 @@ export type StorefrontData = {
   tagline: string;
   openingHours: OpeningHoursWeek | null;
   photoUrl: string | null;
+  photoKey: string | null;
   thumbUrl: string | null;
   thumbKey: string | null;
 };
+
+export function displayStorefrontPhotoUrl(data: {
+  photoUrl: string | null;
+  photoKey?: string | null;
+  thumbUrl?: string | null;
+}): string | null {
+  const base = data.photoUrl ?? data.thumbUrl ?? null;
+  if (!base) return null;
+  const key = data.photoKey?.trim();
+  if (!key) return base;
+  const separator = base.includes('?') ? '&' : '?';
+  return `${base}${separator}v=${encodeURIComponent(key)}`;
+}
 
 function asRecord(value: unknown): JsonRecord | null {
   return value && typeof value === 'object' ? (value as JsonRecord) : null;
@@ -122,6 +136,7 @@ function parseStorefront(body: JsonRecord | null): StorefrontData {
     tagline,
     openingHours: parseOpeningHours(record?.openingHours),
     photoUrl: readString(record, ['photoUrl']),
+    photoKey: readString(record, ['photoKey']),
     thumbUrl: readString(record, ['thumbUrl']),
     thumbKey: readString(record, ['thumbKey']),
   };

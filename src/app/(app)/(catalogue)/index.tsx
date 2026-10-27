@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Href, router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -17,10 +17,12 @@ import { AppTextInput } from '@/components/AppTextInput';
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
 import { productAvailabilityLabel, productShopVisibilityLabel } from '@/lib/catalogue-format';
+import { subscribeCatalogueRefresh } from '@/lib/catalogue-refresh';
 import { catalogueErrorMessage } from '@/lib/catalogue-error-messages';
 import {
   fetchShopCategories,
   fetchShopProducts,
+  mergeProductAvailability,
   patchProductAvailability,
   ShopCategory,
   ShopProduct,
@@ -59,6 +61,15 @@ export default function CatalogueScreen() {
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const [availabilityBusyId, setAvailabilityBusyId] = useState<string | null>(null);
 
+  const refreshProducts = useCallback(async () => {
+    try {
+      const nextProducts = await fetchShopProducts();
+      setProducts(nextProducts);
+    } catch {
+      // keep current list
+    }
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -82,10 +93,25 @@ export default function CatalogueScreen() {
     }
   }, []);
 
+  const hasInitialLoad = useRef(false);
+
   useFocusEffect(
     useCallback(() => {
-      load();
-    }, [load]),
+      if (!hasInitialLoad.current) {
+        hasInitialLoad.current = true;
+        load();
+        return;
+      }
+      void refreshProducts();
+    }, [load, refreshProducts]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      return subscribeCatalogueRefresh(() => {
+        void refreshProducts();
+      });
+    }, [refreshProducts]),
   );
 
   const filteredProducts = useMemo(() => {
@@ -126,9 +152,11 @@ export default function CatalogueScreen() {
     setAvailabilityBusyId(productId);
 
     try {
-      const updated = await patchProductAvailability(productId, { soldOut });
+      const patch = await patchProductAvailability(productId, { soldOut });
       setProducts((current) =>
-        current.map((item) => (item.id === productId ? { ...item, ...updated } : item)),
+        current.map((item) =>
+          item.id === productId ? mergeProductAvailability(item, patch) : item,
+        ),
       );
     } catch (patchError) {
       const rollback = previousSoldOut;
@@ -147,7 +175,7 @@ export default function CatalogueScreen() {
 
   if (loading && products.length === 0 && categories.length === 0) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
         <ScreenLoading />
       </SafeAreaView>
     );
@@ -155,7 +183,7 @@ export default function CatalogueScreen() {
 
   if (error && products.length === 0 && categories.length === 0) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
         <ScreenError message={error} onRetry={load} />
       </SafeAreaView>
     );
@@ -164,7 +192,7 @@ export default function CatalogueScreen() {
   const isEmptyCatalogue = products.length === 0;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
       <View style={styles.header}>
         <Text style={styles.title}>Catalog</Text>
         <Pressable
@@ -232,7 +260,8 @@ export default function CatalogueScreen() {
       ) : (
         <FlatList
           data={filteredProducts}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => `${item.id}:${item.soldOut ? 1 : 0}`}
+          extraData={products}
           numColumns={2}
           columnWrapperStyle={styles.gridRow}
           contentContainerStyle={styles.gridContent}
@@ -241,7 +270,9 @@ export default function CatalogueScreen() {
             <Text style={styles.noMatches}>No matching products</Text>
           }
           renderItem={({ item }) => (
-            <View style={[styles.card, item.soldOut && styles.cardSoldOut]}>
+            <View
+              collapsable={false}
+              style={[styles.card, item.soldOut && styles.cardSoldOutBorder]}>
               <Pressable
                 accessibilityRole="button"
                 onPress={() => openProduct(item.id)}
@@ -506,6 +537,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.surface,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'transparent',
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -513,9 +546,7 @@ const styles = StyleSheet.create({
     shadowRadius: 1,
     elevation: 1,
   },
-  cardSoldOut: {
-    opacity: 0.88,
-    borderWidth: 1,
+  cardSoldOutBorder: {
     borderColor: colors.overlayPrimary,
   },
   cardPressable: {

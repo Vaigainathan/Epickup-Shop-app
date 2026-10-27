@@ -14,6 +14,7 @@ export const colors = {
   heroText: '#8690EE',
   accent: '#006B5F',
   success: '#007165',
+  warning: '#D97706',
   error: '#BA1A1A',
 
   textSecondary: '#454652',

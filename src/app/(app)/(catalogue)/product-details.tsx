@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
+import { requestCatalogueRefresh } from '@/lib/catalogue-refresh';
 import { catalogueErrorMessage } from '@/lib/catalogue-error-messages';
 import {
   MIXED_OPTION_NAMES_NOTE,
@@ -29,6 +30,7 @@ import {
   deleteShopProduct,
   fetchShopCategories,
   fetchShopProduct,
+  mergeProductAvailability,
   patchProductAvailability,
   ShopProduct,
   ShopProductVariant,
@@ -168,8 +170,9 @@ export default function ProductDetailsScreen() {
     setProduct({ ...product, soldOut });
 
     try {
-      const updated = await patchProductAvailability(productId, { soldOut });
-      setProduct(updated);
+      const patch = await patchProductAvailability(productId, { soldOut });
+      setProduct((current) => (current ? mergeProductAvailability(current, patch) : current));
+      requestCatalogueRefresh();
     } catch (patchError) {
       setProduct((current) =>
         current ? { ...current, soldOut: previousSoldOut } : current,
