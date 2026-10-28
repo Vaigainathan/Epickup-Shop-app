@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 
 import { AppTextInput } from '@/components/AppTextInput';
+import { KeyboardInsetSheetScroll } from '@/components/KeyboardInsetSheetScroll';
 import { colors, spacing, typography } from '@/constants/theme';
 import { validateUpiRegisteredName } from '@/lib/upi-registered-name';
 
@@ -43,44 +44,49 @@ export function UpiRegisteredNameSheet({
       <View style={styles.backdrop}>
         <Pressable style={styles.dismiss} onPress={() => !busy && onClose()} />
         <View style={styles.card}>
-          <View style={styles.handle} />
-          <Text style={styles.title}>Registered UPI name</Text>
-          <Text style={styles.warning}>
-            This must match the name shown in your UPI app. Changing it clears verification — you
-            won’t receive marketplace orders until support verifies the new name.
-          </Text>
-          <AppTextInput
-            value={name}
-            onChangeText={setName}
-            placeholder="Name as on UPI"
-            placeholderTextColor={colors.textPlaceholder}
-            editable={!busy}
-            maxLength={100}
-            style={styles.input}
-          />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <Pressable
-            accessibilityRole="button"
-            disabled={!canSave}
-            onPress={() => validation.ok && onSave(validation.value)}
-            style={({ pressed }) => [
-              styles.primary,
-              !canSave && styles.disabled,
-              pressed && styles.pressed,
-            ]}>
-            {busy ? (
-              <ActivityIndicator color={colors.white} />
-            ) : (
-              <Text style={styles.primaryLabel}>Save</Text>
-            )}
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            disabled={busy}
-            onPress={onClose}
-            style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}>
-            <Text style={styles.secondaryLabel}>Go back</Text>
-          </Pressable>
+          <KeyboardInsetSheetScroll
+            basePaddingBottom={spacing.section}
+            cardPaddingTop={spacing.sm}
+            contentContainerStyle={styles.sheetContent}>
+            <View style={styles.handle} />
+            <Text style={styles.title}>Registered UPI name</Text>
+            <Text style={styles.warning}>
+              This must match the name shown in your UPI app. Changing it clears verification — you
+              won’t receive marketplace orders until support verifies the new name.
+            </Text>
+            <AppTextInput
+              value={name}
+              onChangeText={setName}
+              placeholder="Name as on UPI"
+              placeholderTextColor={colors.textPlaceholder}
+              editable={!busy}
+              maxLength={100}
+              style={styles.input}
+            />
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <Pressable
+              accessibilityRole="button"
+              disabled={!canSave}
+              onPress={() => validation.ok && onSave(validation.value)}
+              style={({ pressed }) => [
+                styles.primary,
+                !canSave && styles.disabled,
+                pressed && styles.pressed,
+              ]}>
+              {busy ? (
+                <ActivityIndicator color={colors.white} />
+              ) : (
+                <Text style={styles.primaryLabel}>Save</Text>
+              )}
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              disabled={busy}
+              onPress={onClose}
+              style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}>
+              <Text style={styles.secondaryLabel}>Go back</Text>
+            </Pressable>
+          </KeyboardInsetSheetScroll>
         </View>
       </View>
     </Modal>
@@ -99,8 +105,9 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     paddingHorizontal: spacing.screen,
-    paddingBottom: spacing.section,
     paddingTop: spacing.sm,
+  },
+  sheetContent: {
     gap: spacing.md,
   },
   handle: {

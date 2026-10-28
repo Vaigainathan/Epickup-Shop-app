@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { KeyboardInsetSheetScroll } from '@/components/KeyboardInsetSheetScroll';
 import { colors, spacing, typography } from '@/constants/theme';
 
 type Props = {
@@ -35,28 +36,33 @@ export function ConfirmBottomSheet({
       <View style={styles.backdrop}>
         <Pressable style={styles.dismiss} onPress={() => !busy && onClose()} />
         <View style={styles.card}>
-          <View style={styles.handle} />
-          <Text style={styles.title}>{title}</Text>
-          {body ? <Text style={styles.body}>{body}</Text> : null}
-          {children}
-          <Pressable
-            accessibilityRole="button"
-            disabled={busy || primaryDisabled}
-            onPress={onPrimary}
-            style={({ pressed }) => [
-              styles.primary,
-              (busy || primaryDisabled) && styles.disabled,
-              pressed && styles.pressed,
-            ]}>
-            <Text style={styles.primaryLabel}>{primaryLabel}</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            disabled={busy}
-            onPress={onSecondary ?? onClose}
-            style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}>
-            <Text style={styles.secondaryLabel}>{secondaryLabel}</Text>
-          </Pressable>
+          <KeyboardInsetSheetScroll
+            basePaddingBottom={spacing.card}
+            cardPaddingTop={spacing.card}
+            contentContainerStyle={styles.sheetContent}>
+            <View style={styles.handle} />
+            <Text style={styles.title}>{title}</Text>
+            {body ? <Text style={styles.body}>{body}</Text> : null}
+            {children}
+            <Pressable
+              accessibilityRole="button"
+              disabled={busy || primaryDisabled}
+              onPress={onPrimary}
+              style={({ pressed }) => [
+                styles.primary,
+                (busy || primaryDisabled) && styles.disabled,
+                pressed && styles.pressed,
+              ]}>
+              <Text style={styles.primaryLabel}>{primaryLabel}</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              disabled={busy}
+              onPress={onSecondary ?? onClose}
+              style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}>
+              <Text style={styles.secondaryLabel}>{secondaryLabel}</Text>
+            </Pressable>
+          </KeyboardInsetSheetScroll>
         </View>
       </View>
     </Modal>
@@ -73,10 +79,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   card: {
-    padding: spacing.card,
+    paddingHorizontal: spacing.card,
+    paddingTop: spacing.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     backgroundColor: colors.surface,
+  },
+  sheetContent: {
     gap: spacing.md,
   },
   handle: {
