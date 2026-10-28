@@ -16,10 +16,13 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 44, bottom: 0, left: 0, right: 0 }),
 }));
 
+/** Pre-lift window Y; after lift 401 → 43 (same overlap math as device). */
 const PRE_LIFT_Y = 444;
 const SHEET_HEIGHT = 388;
 const KEYBOARD_SCREEN_Y = 439;
+const KEYBOARD_SCREEN_Y_TALL = 300;
 const EXPECTED_LIFT = 393 + spacing.sm;
+const EXPECTED_LIFT_TALL = 532 + spacing.sm;
 
 function flattenStyle(style: unknown): Record<string, unknown> {
   if (!style) return {};
@@ -67,6 +70,15 @@ describe('KeyboardInsetSheetScroll lift', () => {
     simulatedLift = typeof margin === 'number' ? margin : 0;
   }
 
+  function triggerLayout(tree: renderer.ReactTestRenderer) {
+    act(() => {
+      tree.root.findByProps({ testID: 'keyboard-inset-sheet-scroll' }).props.onLayout?.({
+        nativeEvent: { layout: { x: 0, y: 0, width: 400, height: 200 } },
+      });
+    });
+    syncSimulatedLift(tree);
+  }
+
   function renderScroll(basePaddingBottom: number) {
     let tree!: renderer.ReactTestRenderer;
     act(() => {
@@ -79,13 +91,26 @@ describe('KeyboardInsetSheetScroll lift', () => {
         </KeyboardInsetSheetScroll>,
       );
     });
-    act(() => {
-      tree.root.findByProps({ testID: 'keyboard-inset-sheet-scroll' }).props.onLayout?.({
-        nativeEvent: { layout: { x: 0, y: 0, width: 400, height: 200 } },
-      });
-    });
+    act(() => {});
     syncSimulatedLift(tree);
+    triggerLayout(tree);
     return tree;
+  }
+
+  function updateScroll(tree: renderer.ReactTestRenderer) {
+    act(() => {
+      tree.update(
+        <KeyboardInsetSheetScroll
+          basePaddingBottom={spacing.card}
+          cardPaddingTop={spacing.card}
+          contentContainerStyle={{ gap: spacing.md }}>
+          <View />
+        </KeyboardInsetSheetScroll>,
+      );
+    });
+    act(() => {});
+    syncSimulatedLift(tree);
+    triggerLayout(tree);
   }
 
   function outerMarginBottom(tree: renderer.ReactTestRenderer): number {
@@ -116,45 +141,41 @@ describe('KeyboardInsetSheetScroll lift', () => {
     expect(scrollContentPadding(tree)).toBe(spacing.card);
   });
 
-  it('lifts the outer container when keyboard covers the sheet; content padding stays base', () => {
+  it('lifts on open (overlap 393) and stays stable on re-measure', () => {
     mockUseKeyboardInset.mockReturnValue({ height: 393, screenY: KEYBOARD_SCREEN_Y });
     const tree = renderScroll(spacing.card);
     expect(outerMarginBottom(tree)).toBe(EXPECTED_LIFT);
     expect(scrollContentPadding(tree)).toBe(spacing.card);
     expect(PRE_LIFT_Y - simulatedLift).toBe(43);
+
+    triggerLayout(tree);
+    expect(outerMarginBottom(tree)).toBe(EXPECTED_LIFT);
   });
 
-  it('keeps the same lift after re-measure with lifted coordinates (no oscillation)', () => {
+  it('increases lift when the keyboard grows while already lifted', () => {
     mockUseKeyboardInset.mockReturnValue({ height: 393, screenY: KEYBOARD_SCREEN_Y });
-
-    let tree!: renderer.ReactTestRenderer;
-    act(() => {
-      tree = renderer.create(
-        <KeyboardInsetSheetScroll
-          basePaddingBottom={spacing.card}
-          cardPaddingTop={spacing.card}
-          contentContainerStyle={{ gap: spacing.md }}>
-          <View />
-        </KeyboardInsetSheetScroll>,
-      );
-    });
-
-    act(() => {
-      tree.root.findByProps({ testID: 'keyboard-inset-sheet-scroll' }).props.onLayout?.({
-        nativeEvent: { layout: { x: 0, y: 0, width: 400, height: 200 } },
-      });
-    });
-    syncSimulatedLift(tree);
+    const tree = renderScroll(spacing.card);
     expect(outerMarginBottom(tree)).toBe(EXPECTED_LIFT);
 
-    act(() => {
-      tree.root.findByProps({ testID: 'keyboard-inset-sheet-scroll' }).props.onLayout?.({
-        nativeEvent: { layout: { x: 0, y: 0, width: 400, height: 200 } },
-      });
-    });
+    mockUseKeyboardInset.mockReturnValue({ height: 500, screenY: KEYBOARD_SCREEN_Y_TALL });
+    updateScroll(tree);
+    expect(outerMarginBottom(tree)).toBe(EXPECTED_LIFT_TALL);
 
+    triggerLayout(tree);
+    expect(outerMarginBottom(tree)).toBe(EXPECTED_LIFT_TALL);
+  });
+
+  it('returns lift to the smaller value when the keyboard shrinks again', () => {
+    mockUseKeyboardInset.mockReturnValue({ height: 393, screenY: KEYBOARD_SCREEN_Y });
+    const tree = renderScroll(spacing.card);
+
+    mockUseKeyboardInset.mockReturnValue({ height: 500, screenY: KEYBOARD_SCREEN_Y_TALL });
+    updateScroll(tree);
+    expect(outerMarginBottom(tree)).toBe(EXPECTED_LIFT_TALL);
+
+    mockUseKeyboardInset.mockReturnValue({ height: 393, screenY: KEYBOARD_SCREEN_Y });
+    updateScroll(tree);
     expect(outerMarginBottom(tree)).toBe(EXPECTED_LIFT);
-    expect(scrollContentPadding(tree)).toBe(spacing.card);
   });
 
   it('clears lift and maxHeight on the first render after the keyboard hides', () => {

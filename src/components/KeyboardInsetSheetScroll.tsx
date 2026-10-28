@@ -45,19 +45,9 @@ export function KeyboardInsetSheetScroll({
     (y: number, height: number) => {
       if (!keyboardVisible) return;
       if (height <= 0) return;
-      const rawBottom = y + height;
-      const overlap = Math.max(0, rawBottom - keyboardScreenY);
-
-      if (overlap > 0) {
-        setLift(overlap + spacing.sm);
-        return;
-      }
-
-      if (liftRef.current > 0 && rawBottom <= keyboardScreenY) {
-        return;
-      }
-
-      setLift(0);
+      const currentLift = liftRef.current;
+      const overlap = Math.max(0, y + height + currentLift - keyboardScreenY);
+      setLift(overlap > 0 ? overlap + spacing.sm : 0);
     },
     [keyboardScreenY, keyboardVisible],
   );
