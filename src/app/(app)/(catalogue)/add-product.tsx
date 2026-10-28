@@ -4,9 +4,7 @@ import { Href, router, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppTextInput } from '@/components/AppTextInput';
+import { KeyboardFormScroll } from '@/components/KeyboardFormScroll';
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
 import { fetchShopType } from '@/lib/auth-api';
@@ -363,13 +362,10 @@ export default function AddProductScreen() {
         <Text style={styles.headerTitle}>{isEdit ? 'Edit Product' : 'Add Product'}</Text>
       </View>
 
-      <KeyboardAvoidingView
+      <KeyboardFormScroll
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}>
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Upload product photo"
@@ -720,8 +716,7 @@ export default function AddProductScreen() {
             style={({ pressed }) => [styles.cancelButton, pressed && styles.pressed]}>
             <Text style={styles.cancelLabel}>Cancel Changes</Text>
           </Pressable>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardFormScroll>
 
       <Modal
         visible={sheet.kind !== 'closed'}

@@ -3,11 +3,8 @@ import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -15,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppTextInput } from '@/components/AppTextInput';
+import { KeyboardFormScroll } from '@/components/KeyboardFormScroll';
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
 import {
@@ -266,14 +264,10 @@ export default function AccountScreen() {
         </View>
       </View>
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          style={styles.formScroll}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}>
+      <KeyboardFormScroll
+        style={styles.formScroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}>
           <View style={styles.hero}>
             <Text style={styles.heroTitle}>Your account</Text>
             <Text style={styles.heroBody}>
@@ -431,8 +425,7 @@ export default function AccountScreen() {
               )}
             </Pressable>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardFormScroll>
 
       <Modal
         visible={phoneOpen}

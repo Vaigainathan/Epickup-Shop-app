@@ -3,9 +3,7 @@ import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,6 +13,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppTextInput } from '@/components/AppTextInput';
+import { KeyboardFormScroll } from '@/components/KeyboardFormScroll';
+import { KeyboardInsetSheetScroll } from '@/components/KeyboardInsetSheetScroll';
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
 import {
@@ -226,14 +226,10 @@ export default function BusinessProfileScreen() {
         </View>
       </View>
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          style={styles.formScroll}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}>
+      <KeyboardFormScroll
+        style={styles.formScroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}>
           <View style={styles.hero}>
             <Text style={styles.heroTitle}>Shop details</Text>
             <Text style={styles.heroBody}>
@@ -331,8 +327,7 @@ export default function BusinessProfileScreen() {
             ]}>
             <Text style={styles.continueText}>Confirm Changes</Text>
           </Pressable>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardFormScroll>
 
       <Modal
         visible={typeModalVisible}
@@ -378,9 +373,11 @@ export default function BusinessProfileScreen() {
             style={styles.modalDismiss}
             onPress={() => !submitting && setConfirmOpen(false)}
           />
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.confirmSheet}>
+          <View style={styles.confirmSheetShell}>
+            <KeyboardInsetSheetScroll
+              basePaddingBottom={spacing.card}
+              cardPaddingTop={spacing.card}
+              contentContainerStyle={styles.confirmSheetContent}>
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>Confirm Changes</Text>
             <Text style={styles.confirmBody}>
@@ -424,7 +421,8 @@ export default function BusinessProfileScreen() {
               style={({ pressed }) => [styles.cancelButton, pressed && styles.pressed]}>
               <Text style={styles.cancelLabel}>Cancel</Text>
             </Pressable>
-          </KeyboardAvoidingView>
+            </KeyboardInsetSheetScroll>
+          </View>
         </View>
       </Modal>
 
@@ -695,12 +693,16 @@ const styles = StyleSheet.create({
   modalDismiss: {
     flex: 1,
 },
-  confirmSheet: {
-    padding: spacing.card,
+  confirmSheetShell: {
+    paddingHorizontal: spacing.card,
+    paddingTop: spacing.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     backgroundColor: colors.surface,
-},
+  },
+  confirmSheetContent: {
+    gap: spacing.md,
+  },
   modalCard: {
     maxHeight: '80%',
     padding: spacing.card,

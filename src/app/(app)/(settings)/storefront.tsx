@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -13,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { KeyboardFormScroll } from '@/components/KeyboardFormScroll';
 import { TimePickerSheet } from '@/components/TimePickerSheet';
 import { AppTextInput } from '@/components/AppTextInput';
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
@@ -191,7 +191,7 @@ export default function StorefrontScreen() {
         <Text style={styles.navTitle}>Storefront</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <KeyboardFormScroll contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.hint}>{HOURS_HINT}</Text>
 
         <View style={styles.card}>
@@ -329,7 +329,7 @@ export default function StorefrontScreen() {
             <Text style={styles.primaryLabel}>Save storefront</Text>
           )}
         </Pressable>
-      </ScrollView>
+      </KeyboardFormScroll>
 
       <TimePickerSheet
         visible={timeTarget !== null}

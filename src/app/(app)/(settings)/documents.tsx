@@ -6,12 +6,13 @@ import {
   ActivityIndicator,
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { KeyboardFormScroll } from '@/components/KeyboardFormScroll';
 
 import { AppTextInput } from '@/components/AppTextInput';
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
@@ -230,7 +231,7 @@ export default function ComplianceDocumentsScreen() {
         </View>
       </View>
 
-      <ScrollView
+      <KeyboardFormScroll
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
@@ -286,7 +287,7 @@ export default function ComplianceDocumentsScreen() {
             compliance and identity verification.
           </Text>
         </View>
-      </ScrollView>
+      </KeyboardFormScroll>
 
       <Modal
         visible={sheet !== null}

@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppTextInput } from '@/components/AppTextInput';
 import { colors, spacing, typography } from '@/constants/theme';
+import { useKeyboardMarginLift } from '@/hooks/useKeyboardMarginLift';
 import {
   fetchPlaceAutocomplete,
   fetchPlaceDetails,
@@ -103,7 +104,10 @@ export default function LocationPickerScreen() {
   const [mapVersion, setMapVersion] = useState(0);
   const [mapDimensions, setMapDimensions] = useState({ width: 0, height: 0 });
   const mapRef = useRef<MapView>(null);
+  const bottomBarRef = useRef<View>(null);
   const searchRequestId = useRef(0);
+  const { appliedLift: bottomBarLift, onLayout: onBottomBarLayout } =
+    useKeyboardMarginLift(bottomBarRef);
 
   const mapMeasured = mapDimensions.width > 0 && mapDimensions.height > 0;
   const selectedRegion = useMemo<Region>(
@@ -356,7 +360,10 @@ export default function LocationPickerScreen() {
       </View>
 
       {locationError ? <Text style={styles.error}>{locationError}</Text> : null}
-      <View style={styles.bottomBar}>
+      <View
+        ref={bottomBarRef}
+        onLayout={onBottomBarLayout}
+        style={[styles.bottomBar, { marginBottom: bottomBarLift }]}>
         <Text style={styles.addressPreview} numberOfLines={2}>
           {address || (location ? 'Pinned location' : 'Tap the map or search for your shop')}
         </Text>

@@ -4,10 +4,8 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -15,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppTextInput } from '@/components/AppTextInput';
+import { KeyboardFormScroll } from '@/components/KeyboardFormScroll';
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
 import { catalogueErrorMessage } from '@/lib/catalogue-error-messages';
@@ -167,13 +166,10 @@ export default function CategoriesScreen() {
         <View style={styles.headerSpacer} />
       </View>
 
-      <KeyboardAvoidingView
+      <KeyboardFormScroll
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}>
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}>
           {banner ? (
             <View style={styles.banner}>
               <Text style={styles.bannerText}>{banner}</Text>
@@ -277,8 +273,7 @@ export default function CategoriesScreen() {
               </View>
             );
           })}
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardFormScroll>
     </SafeAreaView>
   );
 }
