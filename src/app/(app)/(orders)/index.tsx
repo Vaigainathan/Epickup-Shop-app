@@ -63,7 +63,7 @@ function emptyCopy(filter: OrdersListFilter): { title: string; body: string } {
     case 'ready':
       return {
         title: 'No orders ready for pickup',
-        body: 'Orders marked ready will show here until handover.',
+        body: 'Orders marked ready will show here until a driver picks them up.',
       };
     case 'completed':
       return {

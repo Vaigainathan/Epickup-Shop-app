@@ -4,7 +4,7 @@ import { type ReactNode, useEffect, useRef } from 'react';
 
 import { requestOrdersRefresh } from '@/lib/orders-refresh';
 import { registerShopPushFromDevice } from '@/lib/shop-push-registration';
-import { getPushRoute, parsePushData } from '@/lib/shop-push';
+import { getPushRoute, isShopPushType, parsePushData } from '@/lib/shop-push';
 import { getSessionToken } from '@/lib/session';
 
 const handledNotificationIds = new Set<string>();
@@ -68,8 +68,12 @@ export function ShopPushProvider({ children }: { children: ReactNode }) {
       registerShopPushFromDevice();
     });
 
-    const receivedSub = Notifications.addNotificationReceivedListener(() => {
-      requestOrdersRefresh();
+    const receivedSub = Notifications.addNotificationReceivedListener((notification) => {
+      const data = notification.request.content.data as Record<string, unknown> | undefined;
+      const parsed = parsePushData(data ?? null);
+      if (isShopPushType(parsed.type)) {
+        requestOrdersRefresh();
+      }
     });
 
     const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {

@@ -8,6 +8,9 @@ export const SHOP_PUSH_TYPES = [
   'refund_due',
   'refund_overdue',
   'balance_not_paid_shop',
+  'order_driver_assigned',
+  'order_driver_arrived',
+  'order_picked_up',
 ] as const;
 
 export type ShopPushType = (typeof SHOP_PUSH_TYPES)[number];
@@ -33,6 +36,9 @@ const ORDER_ACTION_TYPES = new Set<string>([
   'payment_review_shop',
   'review_resolved',
   'customer_cancelled',
+  'order_driver_assigned',
+  'order_driver_arrived',
+  'order_picked_up',
 ]);
 
 const REFUND_ACTION_TYPES = new Set<string>([
@@ -48,6 +54,10 @@ export function parsePushData(data: Record<string, unknown> | null | undefined):
   const shopName = typeof data?.shopName === 'string' ? data.shopName : null;
   const action = typeof data?.action === 'string' ? data.action : null;
   return { type, orderId, displayId, shopName, action };
+}
+
+export function isShopPushType(type: string): boolean {
+  return SHOP_PUSH_TYPES.includes(type as ShopPushType);
 }
 
 export function getPushRoute(data: ShopPushData): PushRoute {

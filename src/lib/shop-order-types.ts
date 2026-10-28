@@ -44,6 +44,7 @@ export type ShopOrderDriverInfo = {
   name: string;
   phone: string;
   vehicle: string;
+  photoUrl: string | null;
 };
 
 export type ShopDeliveryAddress = {
@@ -77,7 +78,6 @@ export type ShopOrderRefund = {
 export type ShopOrder = {
   id: string;
   displayId: number | null;
-  handoverOtp: string | null;
   items: ShopOrderItem[];
   itemsTotal: number;
   deliveryFee: number;
@@ -126,6 +126,7 @@ export type ShopOrder = {
   };
   createdAt: Date | null;
   updatedAt: Date | null;
+  handedOverAt: Date | null;
 };
 
 const ORDER_STATUS_SET = new Set<string>(KNOWN_ORDER_STATUSES);
@@ -216,8 +217,10 @@ function parseDriverInfo(value: unknown): ShopOrderDriverInfo | null {
   const name = readString(record, ['name']) ?? '';
   const phone = readString(record, ['phone']) ?? '';
   const vehicle = readString(record, ['vehicle', 'vehicleNumber']) ?? '';
+  const photoUrl =
+    readString(record, ['photoUrl', 'photo', 'avatarUrl']) ?? null;
   if (!name && !phone && !vehicle) return null;
-  return { name, phone, vehicle };
+  return { name, phone, vehicle, photoUrl };
 }
 
 function parseDeliveryAddress(value: unknown): ShopDeliveryAddress | null {
@@ -499,7 +502,6 @@ export function parseOrder(value: unknown): ShopOrder | null {
   return {
     id,
     displayId: readNumber(record, ['displayId']),
-    handoverOtp: readString(record, ['handoverOtp']),
     items,
     itemsTotal,
     deliveryFee: readNumber(record, ['deliveryFee']) ?? 0,
@@ -554,5 +556,6 @@ export function parseOrder(value: unknown): ShopOrder | null {
     },
     createdAt: parseTimestamp(record.createdAt),
     updatedAt: parseTimestamp(record.updatedAt),
+    handedOverAt: parseTimestamp(record.handedOverAt),
   };
 }

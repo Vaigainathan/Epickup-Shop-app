@@ -12,7 +12,6 @@ function minimalOrder(overrides: Partial<ShopOrder> & { id: string }): ShopOrder
   const base: ShopOrder = {
     id: overrides.id,
     displayId: null,
-    handoverOtp: null,
     items: [],
     itemsTotal: 100,
     deliveryFee: 0,
@@ -59,6 +58,7 @@ function minimalOrder(overrides: Partial<ShopOrder> & { id: string }): ShopOrder
     },
     createdAt: null,
     updatedAt: null,
+    handedOverAt: null,
   };
   return {
     ...base,

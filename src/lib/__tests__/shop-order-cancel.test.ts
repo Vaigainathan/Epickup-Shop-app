@@ -7,7 +7,6 @@ function order(overrides: Partial<ShopOrder> & { id: string }): ShopOrder {
   const base: ShopOrder = {
     id: overrides.id,
     displayId: 1,
-    handoverOtp: null,
     items: [],
     itemsTotal: 100,
     deliveryFee: 0,
@@ -54,6 +53,7 @@ function order(overrides: Partial<ShopOrder> & { id: string }): ShopOrder {
     },
     createdAt: null,
     updatedAt: null,
+    handedOverAt: null,
   };
   return { ...base, ...overrides };
 }
@@ -83,5 +83,9 @@ describe('canShopCancelOrder', () => {
 
   it('blocks awaiting_payment', () => {
     expect(canShopCancelOrder(order({ id: '1', orderStatus: 'awaiting_payment' }))).toBe(false);
+  });
+
+  it('blocks handed_over', () => {
+    expect(canShopCancelOrder(order({ id: '1', orderStatus: 'handed_over' }))).toBe(false);
   });
 });

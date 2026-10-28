@@ -23,7 +23,6 @@ function preparingOrder(items: ShopOrderItem[]): ShopOrder {
   return {
     id: 'o1',
     displayId: 1,
-    handoverOtp: null,
     items,
     itemsTotal: 100,
     deliveryFee: 0,
@@ -70,6 +69,7 @@ function preparingOrder(items: ShopOrderItem[]): ShopOrder {
     },
     createdAt: null,
     updatedAt: null,
+    handedOverAt: null,
   };
 }
 

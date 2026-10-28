@@ -145,10 +145,6 @@ export function ordersErrorMessage(error: unknown, fallback: string): string {
       return 'This order cannot be updated from its current state.';
     case 'MISSING_LOCATION':
       return 'Shop pickup location and delivery coordinates are required before marking ready.';
-    case 'INVALID_HANDOVER':
-      return 'OTP and order ID are required.';
-    case 'HANDOVER_MISMATCH':
-      return 'Order ID or OTP does not match.';
     case 'MISSING_REASON':
       return 'A cancellation reason is required.';
     case 'FULL_UTR_REQUIRED':
@@ -389,14 +385,6 @@ export async function rejectShopOrder(id: string): Promise<OrderTransitionResult
 
 export async function markOrderReady(id: string): Promise<OrderTransitionResult> {
   return postTransition(id, 'mark-ready');
-}
-
-export async function confirmOrderHandover(
-  id: string,
-  otp: string,
-  displayId: number | string,
-): Promise<OrderTransitionResult> {
-  return postTransition(id, 'confirm-handover', { otp, displayId });
 }
 
 export async function cancelShopOrder(id: string, reason: string): Promise<OrderTransitionResult> {

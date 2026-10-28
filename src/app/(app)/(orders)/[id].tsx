@@ -1,8 +1,9 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
-  ActivityIndicator,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -15,13 +16,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MarkUnavailableSheet } from '@/components/orders/MarkUnavailableSheet';
 import { ConfirmBottomSheet } from '@/components/payment/ConfirmBottomSheet';
 import { OrderPaymentActions } from '@/components/payment/OrderPaymentActions';
-import { AppTextInput } from '@/components/AppTextInput';
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
 import {
   cancelShopOrder,
   cancelledDetailCopy,
-  confirmOrderHandover,
   fetchShopOrder,
   formatDisplayId,
   formatInr,
@@ -29,7 +28,6 @@ import {
   itemCount,
   markOrderItemsUnavailable,
   markOrderReady,
-  OrdersApiError,
   ordersErrorMessage,
   relativeTime,
   shopOrderLabelDetail,
@@ -37,6 +35,12 @@ import {
   ShopOrder,
   showRefundDuePill,
 } from '@/lib/orders-api';
+import { subscribeOrdersRefresh } from '@/lib/orders-refresh';
+import {
+  shopDeliveryPartnerMessage,
+  shouldShowDeliveryPartnerCard,
+  shouldShowDriverCard,
+} from '@/lib/shop-order-handover';
 import { markableUnavailableItems } from '@/lib/mark-unavailable-selection';
 import { canShopCancelOrder } from '@/lib/shop-order-cancel';
 import { orderNeedsWarningPill } from '@/lib/shop-order-actions';
@@ -96,34 +100,40 @@ export default function OrderDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [handoverError, setHandoverError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [otpInput, setOtpInput] = useState('');
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState<string | null>(null);
   const [markReadyOpen, setMarkReadyOpen] = useState(false);
   const [markUnavailableOpen, setMarkUnavailableOpen] = useState(false);
   const [unavailableError, setUnavailableError] = useState<string | null>(null);
-  const load = useCallback(async () => {
+  const load = useCallback(async (options?: { silent?: boolean }) => {
     if (!orderId) {
       setError('Order not found.');
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!options?.silent) {
+      setLoading(true);
+    }
     setError(null);
     try {
       setOrder(await fetchShopOrder(orderId));
     } catch (loadError) {
       setError(ordersErrorMessage(loadError, 'Could not load this order.'));
     } finally {
-      setLoading(false);
+      if (!options?.silent) {
+        setLoading(false);
+      }
     }
   }, [orderId]);
 
   useFocusEffect(
     useCallback(() => {
       load();
+      const unsubscribe = subscribeOrdersRefresh(() => {
+        void load({ silent: true });
+      });
+      return unsubscribe;
     }, [load]),
   );
 
@@ -135,7 +145,6 @@ export default function OrderDetailsScreen() {
     if (!order || busy) return;
     setBusy(true);
     setActionError(null);
-    setHandoverError(null);
     try {
       const result = await task();
       applyOrder(result.order, result.refundRequired);
@@ -163,31 +172,6 @@ export default function OrderDetailsScreen() {
       setMarkUnavailableOpen(false);
     } catch (actionErr) {
       setUnavailableError(ordersErrorMessage(actionErr, 'Could not mark items unavailable.'));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleHandover() {
-    if (!order || busy) return;
-    const otp = otpInput.trim();
-    if (!otp || order.displayId == null) {
-      setHandoverError('OTP and order ID are required.');
-      return;
-    }
-    setBusy(true);
-    setHandoverError(null);
-    setActionError(null);
-    try {
-      const result = await confirmOrderHandover(order.id, otp, order.displayId);
-      setOrder(result.order);
-      router.back();
-    } catch (actionErr) {
-      if (actionErr instanceof OrdersApiError && actionErr.code === 'HANDOVER_MISMATCH') {
-        setHandoverError(ordersErrorMessage(actionErr, 'Order ID or OTP does not match.'));
-      } else {
-        setActionError(ordersErrorMessage(actionErr, 'Could not confirm handover.'));
-      }
     } finally {
       setBusy(false);
     }
@@ -258,6 +242,15 @@ export default function OrderDetailsScreen() {
       order.orderStatus === 'payment_unconfirmed' ||
       order.orderStatus === 'payment_review');
   const customerName = order.customerName?.trim() ?? '';
+  const deliveryPartnerMessage = shopDeliveryPartnerMessage(order);
+  const showDeliveryPartnerCard = shouldShowDeliveryPartnerCard(order);
+  const showDriverCard = shouldShowDriverCard(order);
+
+  function callDriver(phone: string) {
+    const trimmed = phone.trim();
+    if (!trimmed) return;
+    void Linking.openURL(`tel:${trimmed}`);
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -373,13 +366,23 @@ export default function OrderDetailsScreen() {
           </Text>
         ) : null}
 
-        {order.orderStatus === 'ready' ? (
+        {showDeliveryPartnerCard && deliveryPartnerMessage ? (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Handover Details</Text>
-            {order.driverInfo ? (
+            <Text style={styles.cardTitle}>Delivery partner</Text>
+            <Text style={styles.orderNumberLarge}>{formatDisplayId(order.displayId)}</Text>
+            <Text style={styles.deliveryStatus}>{deliveryPartnerMessage}</Text>
+            {showDriverCard && order.driverInfo ? (
               <View style={styles.driverRow}>
                 <View style={styles.driverAvatar}>
-                  <MaterialCommunityIcons name="motorbike" size={18} color={colors.white} />
+                  {order.driverInfo.photoUrl ? (
+                    <Image
+                      source={{ uri: order.driverInfo.photoUrl }}
+                      style={styles.driverPhoto}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <MaterialCommunityIcons name="motorbike" size={18} color={colors.white} />
+                  )}
                 </View>
                 <View style={styles.flex}>
                   {order.driverInfo.name ? (
@@ -388,31 +391,18 @@ export default function OrderDetailsScreen() {
                   {order.driverInfo.vehicle ? (
                     <Text style={styles.driverMeta}>Vehicle: {order.driverInfo.vehicle}</Text>
                   ) : null}
-                  {order.driverInfo.phone ? (
-                    <Text style={styles.driverMeta}>{order.driverInfo.phone}</Text>
-                  ) : null}
                 </View>
+                {order.driverInfo.phone ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Call delivery partner"
+                    onPress={() => callDriver(order.driverInfo!.phone)}
+                    style={({ pressed }) => [styles.callButton, pressed && styles.pressed]}>
+                    <MaterialCommunityIcons name="phone" size={20} color={colors.primary} />
+                  </Pressable>
+                ) : null}
               </View>
             ) : null}
-            <View style={styles.otpBox}>
-              <Text style={styles.otpLabel}>PICKUP OTP</Text>
-              <Text style={styles.otpValue}>{order.handoverOtp ?? '—'}</Text>
-              <Text style={styles.otpId}>{formatDisplayId(order.displayId)}</Text>
-            </View>
-            <Text style={styles.hint}>Ask the driver for the OTP, then confirm handover.</Text>
-            <AppTextInput
-              value={otpInput}
-              onChangeText={(value) => {
-                setOtpInput(value);
-                setHandoverError(null);
-              }}
-              placeholder="Enter driver OTP"
-              placeholderTextColor={colors.textPlaceholder}
-              keyboardType="number-pad"
-              maxLength={6}
-              style={styles.otpInput}
-            />
-            {handoverError ? <Text style={styles.inlineError}>{handoverError}</Text> : null}
           </View>
         ) : null}
 
@@ -476,7 +466,7 @@ export default function OrderDetailsScreen() {
           setBusy={setBusy}
           onOrderUpdated={(next) => setOrder(next)}
           onActionError={setActionError}
-          onRefundSent={load}
+          onRefundSent={() => void load()}
         />
 
         {showMarkUnavailable ? (
@@ -510,22 +500,6 @@ export default function OrderDetailsScreen() {
                 Resolve stock short before marking ready.
               </Text>
             ) : null}
-          </View>
-        ) : null}
-
-        {order.orderStatus === 'ready' ? (
-          <View style={styles.actions}>
-            <Pressable
-              accessibilityRole="button"
-              disabled={busy}
-              onPress={handleHandover}
-              style={({ pressed }) => [styles.primary, busy && styles.disabled, pressed && styles.pressed]}>
-              {busy ? (
-                <ActivityIndicator color={colors.white} />
-              ) : (
-                <Text style={styles.primaryLabel}>Confirm Handover</Text>
-              )}
-            </Pressable>
           </View>
         ) : null}
 
@@ -807,7 +781,37 @@ const styles = StyleSheet.create({
     backgroundColor: colors.hero,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
 },
+  driverPhoto: {
+    width: 48,
+    height: 48,
+  },
+  callButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 9999,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+  },
+  orderNumberLarge: {
+    fontSize: typography.sizes.display,
+    lineHeight: typography.lineHeights.display,
+    fontFamily: typography.fonts.bold,
+    letterSpacing: typography.letterSpacing.display,
+    color: colors.primary,
+    textAlign: 'center',
+  },
+  deliveryStatus: {
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.sizes.body,
+    lineHeight: typography.lineHeights.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
   driverName: {
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
@@ -819,51 +823,6 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.body,
     lineHeight: typography.lineHeights.body,
     color: colors.textSecondary,
-  },
-  otpBox: {
-    backgroundColor: colors.primary,
-    borderRadius: 8,
-    paddingVertical: spacing.lg,
-    alignItems: 'center',
-    gap: spacing.xs,
-},
-  otpLabel: {
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.sizes.label,
-    lineHeight: typography.lineHeights.label,
-    letterSpacing: typography.letterSpacing.overline,
-    color: colors.white,
-    opacity: 0.8,
-  },
-  otpValue: {
-    fontSize: typography.sizes.display,
-    lineHeight: typography.lineHeights.display,
-    fontFamily: typography.fonts.bold,
-    letterSpacing: typography.letterSpacing.display,
-    color: colors.white,
-  },
-  otpId: {
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.sizes.body,
-    lineHeight: typography.lineHeights.body,
-    color: colors.overlayHeroText,
-  },
-  hint: {
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.sizes.body,
-    lineHeight: typography.lineHeights.body,
-    color: colors.textSecondary,
-  },
-  otpInput: {
-    height: spacing.input,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.sizes.input,
-    color: colors.heading,
-    backgroundColor: colors.background,
   },
   refundNote: {
     fontFamily: typography.fonts.regular,

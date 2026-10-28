@@ -15,7 +15,6 @@ function minimalOrder(overrides: Partial<ShopOrder> & { id: string }): ShopOrder
   const base: ShopOrder = {
     id: overrides.id,
     displayId: null,
-    handoverOtp: null,
     items: [],
     itemsTotal: 100,
     deliveryFee: 0,
@@ -62,6 +61,7 @@ function minimalOrder(overrides: Partial<ShopOrder> & { id: string }): ShopOrder
     },
     createdAt: new Date('2026-01-01T10:00:00Z'),
     updatedAt: null,
+    handedOverAt: null,
   };
   return { ...base, ...overrides };
 }
@@ -320,6 +320,9 @@ describe('getPushRoute', () => {
     'refund_due',
     'refund_overdue',
     'balance_not_paid_shop',
+    'order_driver_assigned',
+    'order_driver_arrived',
+    'order_picked_up',
   ];
 
   const refundTypes = ['refund_due', 'refund_overdue', 'balance_not_paid_shop'];
