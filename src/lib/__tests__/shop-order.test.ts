@@ -323,6 +323,7 @@ describe('getPushRoute', () => {
     'order_driver_assigned',
     'order_driver_arrived',
     'order_picked_up',
+    'order_delivered',
   ];
 
   const refundTypes = ['refund_due', 'refund_overdue', 'balance_not_paid_shop'];
@@ -348,6 +349,18 @@ describe('getPushRoute', () => {
     expect(getPushRoute(parsePushData({ type: 'incoming_payment' }))).toEqual({
       kind: 'orders_list',
     });
+  });
+
+  it('parses order_delivered payload and routes to order detail', () => {
+    const parsed = parsePushData({
+      type: 'order_delivered',
+      orderId: 'ord-99',
+      displayId: 'SH-99',
+    });
+    expect(parsed.type).toBe('order_delivered');
+    expect(parsed.orderId).toBe('ord-99');
+    expect(parsed.displayId).toBe('SH-99');
+    expect(getPushRoute(parsed)).toEqual({ kind: 'order', orderId: 'ord-99' });
   });
 });
 

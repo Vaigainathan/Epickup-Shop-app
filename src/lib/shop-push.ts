@@ -11,6 +11,7 @@ export const SHOP_PUSH_TYPES = [
   'order_driver_assigned',
   'order_driver_arrived',
   'order_picked_up',
+  'order_delivered',
 ] as const;
 
 export type ShopPushType = (typeof SHOP_PUSH_TYPES)[number];
@@ -39,6 +40,7 @@ const ORDER_ACTION_TYPES = new Set<string>([
   'order_driver_assigned',
   'order_driver_arrived',
   'order_picked_up',
+  'order_delivered',
 ]);
 
 const REFUND_ACTION_TYPES = new Set<string>([
