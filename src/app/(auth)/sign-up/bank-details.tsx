@@ -3,10 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -14,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppTextInput } from '@/components/AppTextInput';
+import { KeyboardFormScroll } from '@/components/KeyboardFormScroll';
 import { colors, spacing, typography } from '@/constants/theme';
 import {
   saveShopBankDetails,
@@ -154,13 +152,10 @@ export default function SignUpBankDetailsScreen() {
         </View>
       </View>
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}>
+      <KeyboardFormScroll
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}>
           <View style={styles.hero}>
             <Text style={styles.heroOverline}>VERIFICATION REQUIRED</Text>
             <Text style={styles.heroTitle}>Link your bank account</Text>
@@ -320,8 +315,7 @@ export default function SignUpBankDetailsScreen() {
               </>
             )}
           </Pressable>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardFormScroll>
     </SafeAreaView>
   );
 }

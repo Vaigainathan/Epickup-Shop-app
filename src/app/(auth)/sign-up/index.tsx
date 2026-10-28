@@ -3,10 +3,7 @@ import { Link, router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -14,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppTextInput } from '@/components/AppTextInput';
+import { KeyboardFormScroll } from '@/components/KeyboardFormScroll';
 import { colors, spacing, typography } from '@/constants/theme';
 import { checkShopPhone } from '@/lib/auth-api';
 import { authSignUpPhoneErrorMessage, isAuthNetworkFailure } from '@/lib/auth-error-messages';
@@ -111,13 +109,10 @@ export default function SignUpPhoneScreen() {
       <Image source={blobTop} style={styles.blobTop} contentFit="contain" pointerEvents="none" />
       <Image source={blobBottom} style={styles.blobBottom} contentFit="contain" pointerEvents="none" />
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}>
+      <KeyboardFormScroll
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}>
           <View style={styles.branding}>
             <View style={styles.logoCard}>
               <Image source={logo} style={styles.logo} contentFit="contain" />
@@ -196,8 +191,7 @@ export default function SignUpPhoneScreen() {
               )}
             </View>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardFormScroll>
     </SafeAreaView>
   );
 }

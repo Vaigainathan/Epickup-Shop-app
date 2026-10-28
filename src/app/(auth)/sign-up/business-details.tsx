@@ -4,9 +4,7 @@ import { getAuth } from '@react-native-firebase/auth';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppTextInput } from '@/components/AppTextInput';
+import { KeyboardFormScroll } from '@/components/KeyboardFormScroll';
 import { colors, spacing, typography } from '@/constants/theme';
 import { saveShopBusinessDetails } from '@/lib/auth-api';
 import { authErrorMessage } from '@/lib/auth-error-messages';
@@ -118,15 +117,12 @@ export default function SignUpBusinessDetailsScreen() {
         </View>
       </View>
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          ref={scrollRef}
-          style={styles.formScroll}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}>
+      <KeyboardFormScroll
+        ref={scrollRef}
+        style={styles.formScroll}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}>
           <View style={styles.progress}>
             <View style={styles.progressLine} />
             {(['1', '2', '3'] as const).map((step, index) => {
@@ -254,8 +250,7 @@ export default function SignUpBusinessDetailsScreen() {
               </>
             )}
           </Pressable>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardFormScroll>
 
       <Modal
         visible={typeModalVisible}

@@ -3,11 +3,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   NativeSyntheticEvent,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -17,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppTextInput } from '@/components/AppTextInput';
+import { KeyboardFormScroll } from '@/components/KeyboardFormScroll';
 import { colors, spacing, typography } from '@/constants/theme';
 import { verifyFirebaseShopToken } from '@/lib/auth-api';
 import { authErrorMessage } from '@/lib/auth-error-messages';
@@ -174,13 +172,10 @@ export default function SignUpOtpScreen() {
       <Image source={blobTop} style={styles.blobTop} contentFit="contain" pointerEvents="none" />
       <Image source={blobBottom} style={styles.blobBottom} contentFit="contain" pointerEvents="none" />
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}>
+      <KeyboardFormScroll
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}>
           <View style={styles.branding}>
             <View style={styles.logoCard}>
               <Image source={logo} style={styles.logo} contentFit="contain" />
@@ -243,8 +238,7 @@ export default function SignUpOtpScreen() {
               )}
             </View>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardFormScroll>
     </SafeAreaView>
   );
 }
