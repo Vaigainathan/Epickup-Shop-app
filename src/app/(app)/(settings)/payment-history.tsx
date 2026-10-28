@@ -1,12 +1,15 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { Href, router, useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ScreenError, ScreenLoading } from '@/components/screen-status';
+import { PaymentHistoryEarningsSection } from '@/components/earnings/PaymentHistoryEarningsSection';
+import { ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
 import { fetchPaymentHistory, PaymentHistoryItem } from '@/lib/dashboard-api';
+import { fetchShopEarnings, type ShopEarnings } from '@/lib/earnings-api';
+import { earningsErrorMessage } from '@/lib/earnings-error-messages';
 import { paymentHistoryErrorMessage } from '@/lib/payment-history-error-messages';
 import { formatDisplayId, formatInr } from '@/lib/orders-api';
 
@@ -25,6 +28,10 @@ export default function PaymentHistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [earnings, setEarnings] = useState<ShopEarnings | null>(null);
+  const [earningsLoading, setEarningsLoading] = useState(true);
+  const [earningsError, setEarningsError] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -37,11 +44,69 @@ export default function PaymentHistoryScreen() {
     }
   }, []);
 
+  const loadEarnings = useCallback(async () => {
+    setEarningsLoading(true);
+    setEarningsError(null);
+    try {
+      setEarnings(await fetchShopEarnings());
+    } catch (loadError) {
+      setEarningsError(earningsErrorMessage(loadError, "Couldn't load earnings."));
+    } finally {
+      setEarningsLoading(false);
+    }
+  }, []);
+
+  const onRefundsDuePress = useCallback(() => {
+    router.push('/(app)/(refunds)' as Href);
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       load();
-    }, [load]),
+      loadEarnings();
+    }, [load, loadEarnings]),
   );
+
+  const earningsHeader = useMemo(
+    () => (
+      <PaymentHistoryEarningsSection
+        earnings={earnings}
+        loading={earningsLoading}
+        error={earningsError}
+        onRetry={loadEarnings}
+        onRefundsDuePress={onRefundsDuePress}
+      />
+    ),
+    [earnings, earningsLoading, earningsError],
+  );
+
+  const listEmpty = useMemo(() => {
+    if (error) {
+      return (
+        <View style={styles.listEmpty}>
+          <Text style={styles.emptyTitle}>Could not load payment history</Text>
+          <Text style={styles.emptyBody}>{error}</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={load}
+            style={({ pressed }) => [styles.historyRetryButton, pressed && styles.pressed]}>
+            <Text style={styles.historyRetryLabel}>Retry</Text>
+          </Pressable>
+        </View>
+      );
+    }
+    if (!loading) {
+      return (
+        <View style={styles.listEmpty}>
+          <Text style={styles.emptyTitle}>No payments yet</Text>
+          <Text style={styles.emptyBody}>
+            Confirmed and refunded order payments will appear here.
+          </Text>
+        </View>
+      );
+    }
+    return null;
+  }, [error, loading, load]);
 
   if (loading && items.length === 0) {
     return (
@@ -51,74 +116,58 @@ export default function PaymentHistoryScreen() {
     );
   }
 
-  if (error && items.length === 0) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <Header onBack={() => router.back()} />
-        <ScreenError message={error} onRetry={load} />
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <Header onBack={() => router.back()} />
-      {items.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>No payments yet</Text>
-          <Text style={styles.emptyBody}>
-            Confirmed and refunded order payments will appear here.
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={items}
-          keyExtractor={(item) => item.orderId}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <View style={styles.row}>
+      <FlatList
+        data={items}
+        keyExtractor={(item) => item.orderId}
+        ListHeaderComponent={earningsHeader}
+        ListEmptyComponent={listEmpty}
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        renderItem={({ item }) => (
+          <View style={styles.row}>
+            <View
+              style={[
+                styles.icon,
+                item.paymentStatus === 'refunded' && styles.iconRefunded,
+              ]}>
+              <MaterialCommunityIcons
+                name={item.paymentStatus === 'refunded' ? 'cash-refund' : 'check'}
+                size={20}
+                color={item.paymentStatus === 'refunded' ? colors.error : colors.accent}
+              />
+            </View>
+            <View style={styles.meta}>
+              <Text numberOfLines={1} style={styles.date}>
+                {formatDate(item.at) || '—'}
+              </Text>
+              <Text numberOfLines={1} style={styles.ref}>
+                {formatDisplayId(item.displayId)}
+              </Text>
+            </View>
+            <View style={styles.amountCol}>
+              <Text numberOfLines={1} style={styles.amount}>
+                {formatInr(item.amount)}
+              </Text>
               <View
                 style={[
-                  styles.icon,
-                  item.paymentStatus === 'refunded' && styles.iconRefunded,
+                  styles.statusPill,
+                  item.paymentStatus === 'refunded' && styles.statusRefunded,
                 ]}>
-                <MaterialCommunityIcons
-                  name={item.paymentStatus === 'refunded' ? 'cash-refund' : 'check'}
-                  size={20}
-                  color={item.paymentStatus === 'refunded' ? colors.error : colors.accent}
-                />
-              </View>
-              <View style={styles.meta}>
-                <Text numberOfLines={1} style={styles.date}>
-                  {formatDate(item.at) || '—'}
-                </Text>
-                <Text numberOfLines={1} style={styles.ref}>
-                  {formatDisplayId(item.displayId)}
-                </Text>
-              </View>
-              <View style={styles.amountCol}>
-                <Text numberOfLines={1} style={styles.amount}>
-                  {formatInr(item.amount)}
-                </Text>
-                <View
+                <Text
                   style={[
-                    styles.statusPill,
-                    item.paymentStatus === 'refunded' && styles.statusRefunded,
+                    styles.statusText,
+                    item.paymentStatus === 'refunded' && styles.statusTextRefunded,
                   ]}>
-                  <Text
-                    style={[
-                      styles.statusText,
-                      item.paymentStatus === 'refunded' && styles.statusTextRefunded,
-                    ]}>
-                    {item.paymentStatus === 'refunded' ? 'Refunded' : 'Confirmed'}
-                  </Text>
-                </View>
+                  {item.paymentStatus === 'refunded' ? 'Refunded' : 'Confirmed'}
+                </Text>
               </View>
             </View>
-          )}
-        />
-      )}
+          </View>
+        )}
+      />
     </SafeAreaView>
   );
 }
@@ -168,6 +217,30 @@ const styles = StyleSheet.create({
     padding: spacing.screen,
     gap: spacing.sm,
     paddingBottom: spacing.section,
+    flexGrow: 1,
+  },
+  listEmpty: {
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+    gap: spacing.sm,
+  },
+  historyRetryButton: {
+    minHeight: 48,
+    minWidth: 120,
+    paddingHorizontal: spacing.lg,
+    borderRadius: 9999,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.sm,
+  },
+  historyRetryLabel: {
+    fontFamily: typography.fonts.semibold,
+    fontSize: typography.sizes.body,
+    lineHeight: typography.lineHeights.body,
+    letterSpacing: typography.letterSpacing.button,
+    color: colors.white,
   },
   row: {
     backgroundColor: colors.surface,
@@ -243,13 +316,6 @@ const styles = StyleSheet.create({
   },
   statusTextRefunded: {
     color: colors.error,
-  },
-  empty: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-    gap: spacing.sm,
   },
   emptyTitle: {
     fontSize: typography.sizes.headingSm,

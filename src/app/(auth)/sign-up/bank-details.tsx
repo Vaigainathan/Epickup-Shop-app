@@ -294,8 +294,8 @@ export default function SignUpBankDetailsScreen() {
             <View style={styles.infoCopy}>
               <Text style={styles.infoTitle}>Privacy Guaranteed</Text>
               <Text style={styles.infoText}>
-                Your bank details are encrypted and used only for automated settlement of your
-                earnings.
+                Your bank details are stored encrypted and are never shown to customers. Customers
+                pay you directly to your UPI ID.
               </Text>
             </View>
           </View>
@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.caption,
-    fontStyle: 'italic',
+    lineHeight: typography.lineHeights.caption,
   },
   errorText: {
     marginLeft: spacing.xs,

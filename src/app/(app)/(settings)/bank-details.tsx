@@ -310,7 +310,7 @@ export default function BankDetailsScreen() {
           <View style={styles.hero}>
             <Text style={styles.heroTitle}>Payment destination</Text>
             <Text style={styles.heroBody}>
-              Update the account and UPI ID used for settlements. Saving requires your current
+              Update the account and UPI ID customers pay you on. Saving requires your current
               password. A new UPI ID must be verified before it goes live.
             </Text>
           </View>
@@ -480,8 +480,8 @@ export default function BankDetailsScreen() {
             <View style={styles.trustCopy}>
               <Text style={styles.trustTitle}>Privacy Guaranteed</Text>
               <Text style={styles.trustText}>
-                Your bank details are encrypted and used only for automated settlement of your
-                earnings.
+                Your bank details are stored encrypted and are never shown to customers. Customers
+                pay you directly to your UPI ID.
               </Text>
             </View>
           </View>
@@ -726,7 +726,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.caption,
-    fontStyle: 'italic',
+    lineHeight: typography.lineHeights.caption,
   },
   errorText: {
     marginLeft: spacing.xs,
