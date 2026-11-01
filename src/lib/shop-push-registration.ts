@@ -8,7 +8,6 @@ import {
   unregisterShopPushToken,
   withTimeout,
 } from '@/lib/fcm-tokens-api';
-import { ensureShopNotificationChannels } from '@/lib/shop-notification-channels';
 import { devPushLog, withRetries } from '@/lib/shop-push-register-retry';
 import { getSessionRegistrationKey, getSessionToken } from '@/lib/session';
 
@@ -35,8 +34,6 @@ export async function obtainExpoPushTokenWithStatus(): Promise<PushObtainResult>
     finalStatus = status;
   }
   if (finalStatus !== 'granted') return { ok: false, reason: 'permission_denied' };
-
-  await ensureShopNotificationChannels();
 
   try {
     const tokenResult = await withRetries('getExpoPushTokenAsync', () =>
@@ -87,9 +84,8 @@ export async function unregisterShopPushBestEffort(): Promise<void> {
   }
 }
 
-/** Called when app returns to foreground — register + channel ensure. */
+/** Called when app returns to foreground — re-register push token. */
 export function onAppForegroundForPush(): void {
-  void ensureShopNotificationChannels();
   void registerShopPushFromDevice();
 }
 
