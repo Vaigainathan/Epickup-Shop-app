@@ -277,6 +277,38 @@ function replaceIncompleteStepWithMessage(step: IncompleteStep, message: string)
   }
 }
 
+const URLishKey = /url|uri|photo|document|file|path|download/i;
+
+function redactDevLogValue(key: string, value: unknown): unknown {
+  if (typeof value === 'string') {
+    const lowerKey = key.toLowerCase();
+    if (URLishKey.test(lowerKey)) return '[redacted]';
+    if (/^https?:\/\//i.test(value) || value.startsWith('gs://')) return '[redacted]';
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item, index) => redactDevLogValue(String(index), item));
+  }
+  if (value && typeof value === 'object') {
+    return sanitizeOnboardingStatusForDevLog(value);
+  }
+  return value;
+}
+
+/** Strip document URLs from onboarding status payloads before __DEV__ logging. */
+export function sanitizeOnboardingStatusForDevLog(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item, index) => redactDevLogValue(String(index), item));
+  }
+  if (!value || typeof value !== 'object') return value;
+  const record = value as JsonRecord;
+  const out: JsonRecord = {};
+  for (const [key, nested] of Object.entries(record)) {
+    out[key] = redactDevLogValue(key, nested);
+  }
+  return out;
+}
+
 export async function fetchOnboardingStatus(token: string): Promise<OnboardingStatus> {
   const response = await fetch(apiUrl('/api/shop/onboarding/status'), {
     method: 'GET',
@@ -298,7 +330,10 @@ export async function fetchOnboardingStatus(token: string): Promise<OnboardingSt
   }
 
   if (__DEV__) {
-    console.log('[onboarding/status] raw JSON:', JSON.stringify(body, null, 2));
+    console.log(
+      '[onboarding/status] raw JSON:',
+      JSON.stringify(sanitizeOnboardingStatusForDevLog(body), null, 2),
+    );
   }
 
   if (!response.ok) {
@@ -307,7 +342,10 @@ export async function fetchOnboardingStatus(token: string): Promise<OnboardingSt
 
   const parsed = parseOnboardingStatus(body);
   if (__DEV__) {
-    console.log('[onboarding/status] parsed route decision:', parsed);
+    console.log(
+      '[onboarding/status] parsed route decision:',
+      sanitizeOnboardingStatusForDevLog(parsed),
+    );
   }
 
   return parsed;

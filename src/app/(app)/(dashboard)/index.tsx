@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
+import { NotificationsOffBanner } from '@/components/NotificationsOffBanner';
 import { colors, spacing, typography } from '@/constants/theme';
 import { fetchShopProducts } from '@/lib/catalogue-api';
 import {
@@ -24,6 +25,7 @@ import { dashboardErrorMessage } from '@/lib/dashboard-error-messages';
 import { fetchRefundsDueCount } from '@/lib/refunds-api';
 import { formatShopOpenIndicator } from '@/lib/shop-open-indicator';
 import { useShopOpenStatus } from '@/lib/shop-open-status-context';
+import { useLiveRefresh } from '@/lib/use-live-refresh';
 
 type OrderStatusKey = 'awaiting_payment' | 'preparing' | 'ready';
 
@@ -50,8 +52,10 @@ export default function DashboardScreen() {
   const [statusError, setStatusError] = useState<string | null>(null);
   const [refundsDueCount, setRefundsDueCount] = useState(0);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+    }
     setError(null);
     setStatusError(null);
 
@@ -79,13 +83,21 @@ export default function DashboardScreen() {
     } catch (loadError) {
       setError(dashboardErrorMessage(loadError, 'Could not load your dashboard.'));
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, [patchStatus]);
 
+  const liveRefresh = useCallback(async () => {
+    await load(true);
+  }, [load]);
+
+  useLiveRefresh({ scope: 'dashboard', refresh: liveRefresh });
+
   useFocusEffect(
     useCallback(() => {
-      load();
+      void load(false);
     }, [load]),
   );
 
@@ -157,6 +169,7 @@ export default function DashboardScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
+        <NotificationsOffBanner />
         {isFirstTime ? (
           <>
             <View style={styles.welcome}>

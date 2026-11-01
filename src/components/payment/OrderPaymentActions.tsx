@@ -30,6 +30,11 @@ import {
 } from '@/lib/orders-api';
 import { refundReasonCopy } from '@/lib/refund-reason-copy';
 import {
+  canQuickConfirmPayment,
+  customerUtrLast4,
+  quickConfirmPrimaryLabel,
+} from '@/lib/payment-quick-confirm';
+import {
   buildConfirmUtrFields,
   confirmUtrBody,
 } from '@/lib/utr-validation';
@@ -59,7 +64,9 @@ export function OrderPaymentActions({
   const [forceFullUtr, setForceFullUtr] = useState(false);
   const [receivedAmount, setReceivedAmount] = useState('');
   const [refundSheetOpen, setRefundSheetOpen] = useState(false);
+  const [quickConfirmActive, setQuickConfirmActive] = useState(false);
 
+  const quickConfirmAvailable = canQuickConfirmPayment(order, 'confirm_received');
   const allActions = useMemo(() => getShopOrderActions(order), [order]);
   const actions = useMemo(() => {
     if (order.orderStatus === 'payment_unconfirmed') {
@@ -69,7 +76,8 @@ export function OrderPaymentActions({
   }, [allActions, attestationChecked, order.orderStatus]);
 
   const showAttestation =
-    order.orderStatus === 'awaiting_payment' || order.orderStatus === 'payment_unconfirmed';
+    (order.orderStatus === 'awaiting_payment' && !quickConfirmAvailable) ||
+    order.orderStatus === 'payment_unconfirmed';
 
   const openRefund = openRefundsForOrder(order);
   const openRefundMeta = order.refunds.find(
@@ -83,11 +91,18 @@ export function OrderPaymentActions({
     setFullUtr('');
     setForceFullUtr(false);
     setReceivedAmount('');
+    setQuickConfirmActive(false);
   }
 
   function openAction(id: ShopActionId) {
     onActionError(null);
     setActiveAction(id);
+    if (id === 'confirm_received' && canQuickConfirmPayment(order, id)) {
+      setQuickConfirmActive(true);
+      setPhase('confirm');
+      return;
+    }
+    setQuickConfirmActive(false);
     setPhase(id === 'reject' || id === 'paid_check_no' ? 'confirm' : 'form');
   }
 
@@ -213,13 +228,18 @@ export function OrderPaymentActions({
 
       if (actionUsesConfirmPayment(activeAction)) {
         const forBalance = activeAction === 'confirm_balance';
-        const utr = resolveUtr(forBalance);
+        let utr = resolveUtr(forBalance);
+        if (quickConfirmActive && activeAction === 'confirm_received') {
+          const last4 = customerUtrLast4(order.payment.customerUtr);
+          utr = last4 ? { utrLast4: last4 } : null;
+        }
         if (!utr) {
           onActionError('Enter a valid UTR.');
           return;
         }
+        const attestationForBody = quickConfirmActive || attestationChecked;
         const body = buildConfirmPaymentBody(order, activeAction, utr, {
-          attestationChecked,
+          attestationChecked: attestationForBody,
         });
         if (!body) {
           onActionError('This action is not available. Refresh and try again.');
@@ -232,6 +252,7 @@ export function OrderPaymentActions({
     } catch (err) {
       if (err instanceof OrdersApiError && err.code === 'FULL_UTR_REQUIRED') {
         setForceFullUtr(true);
+        setQuickConfirmActive(false);
         setPhase('form');
         onActionError('Enter the full 12-digit UTR from your UPI app.');
       } else {
@@ -243,7 +264,9 @@ export function OrderPaymentActions({
   }
 
   function primaryDisabled(action: ShopActionId): boolean {
-    if (action === 'confirm_received' && showAttestation && !attestationChecked) return true;
+    if (action !== 'confirm_received') return false;
+    if (quickConfirmAvailable && order.orderStatus === 'awaiting_payment') return false;
+    if (showAttestation && !attestationChecked) return true;
     return false;
   }
 
@@ -252,6 +275,7 @@ export function OrderPaymentActions({
   const fieldMode = utrFields(forBalance);
   const needsUtrForm =
     activeAction &&
+    !quickConfirmActive &&
     activeAction !== 'reject' &&
     activeAction !== 'paid_check_no' &&
     (actionUsesConfirmPayment(activeAction) ||
@@ -322,8 +346,22 @@ export function OrderPaymentActions({
         <ConfirmBottomSheet
           visible
           title={phase === 'confirm' ? confirmCopy().title : confirmCopy().title}
-          body={phase === 'confirm' ? confirmCopy().body : undefined}
-          primaryLabel={phase === 'confirm' ? (busy ? 'Saving…' : 'Confirm') : 'Continue'}
+          body={
+            phase === 'confirm'
+              ? quickConfirmActive
+                ? undefined
+                : confirmCopy().body
+              : undefined
+          }
+          primaryLabel={
+            phase === 'confirm'
+              ? busy
+                ? 'Saving…'
+                : quickConfirmActive
+                  ? quickConfirmPrimaryLabel(order)
+                  : 'Confirm'
+              : 'Continue'
+          }
           primaryDisabled={
             phase === 'form' &&
             activeAction === 'amount_differs' &&

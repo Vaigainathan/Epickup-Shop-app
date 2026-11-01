@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppTextInput } from '@/components/AppTextInput';
+import { NotificationsOffBanner } from '@/components/NotificationsOffBanner';
 import { ScreenError, ScreenLoading } from '@/components/screen-status';
 import { colors, spacing, typography } from '@/constants/theme';
 import {
@@ -27,7 +28,7 @@ import {
   ShopOrder,
   showRefundDuePill,
 } from '@/lib/orders-api';
-import { subscribeOrdersRefresh } from '@/lib/orders-refresh';
+import { useLiveRefresh } from '@/lib/use-live-refresh';
 import { orderNeedsWarningPill } from '@/lib/shop-order-actions';
 
 const emptyIllustration = require('@/assets/images/orders/empty-orders.png');
@@ -87,20 +88,35 @@ export default function OrdersScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const filterRef = useRef(filter);
+  filterRef.current = filter;
 
-  const load = useCallback(async (nextFilter: OrdersListFilter, replaceList = false) => {
-    setLoading(true);
-    setError(null);
-    if (replaceList) setOrders([]);
-    try {
-      const nextOrders = await fetchShopOrders(nextFilter);
-      setOrders(nextOrders);
-    } catch (loadError) {
-      setError(ordersScreenErrorMessage(loadError, 'Could not load orders.'));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const load = useCallback(
+    async (nextFilter: OrdersListFilter, replaceList = false, silent = false) => {
+      if (!silent) {
+        setLoading(true);
+      }
+      setError(null);
+      if (replaceList) setOrders([]);
+      try {
+        const nextOrders = await fetchShopOrders(nextFilter);
+        setOrders(nextOrders);
+      } catch (loadError) {
+        setError(ordersScreenErrorMessage(loadError, 'Could not load orders.'));
+      } finally {
+        if (!silent) {
+          setLoading(false);
+        }
+      }
+    },
+    [],
+  );
+
+  const liveRefresh = useCallback(async () => {
+    await load(filterRef.current, false, true);
+  }, [load]);
+
+  useLiveRefresh({ scope: 'orders', refresh: liveRefresh });
 
   useFocusEffect(
     useCallback(() => {
@@ -112,12 +128,7 @@ export default function OrdersScreen() {
       }
       const next = userFilter.current ?? paramStatus(params.status);
       setFilter(next);
-      load(next, paramChanged);
-
-      const unsubscribe = subscribeOrdersRefresh(() => {
-        load(next, false);
-      });
-      return unsubscribe;
+      load(next, paramChanged, false);
     }, [load, params.status]),
   );
 
@@ -158,6 +169,7 @@ export default function OrdersScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
       <Text style={styles.pageTitle}>Orders</Text>
+      <NotificationsOffBanner />
 
       <View style={styles.searchShell}>
         <MaterialCommunityIcons name="magnify" size={18} color={colors.textMuted} />

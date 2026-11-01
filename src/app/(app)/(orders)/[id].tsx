@@ -35,7 +35,7 @@ import {
   ShopOrder,
   showRefundDuePill,
 } from '@/lib/orders-api';
-import { subscribeOrdersRefresh } from '@/lib/orders-refresh';
+import { useLiveRefresh } from '@/lib/use-live-refresh';
 import {
   shopDeliveryPartnerMessage,
   shouldShowDeliveryPartnerCard,
@@ -127,13 +127,15 @@ export default function OrderDetailsScreen() {
     }
   }, [orderId]);
 
+  const liveRefresh = useCallback(async () => {
+    await load({ silent: true });
+  }, [load]);
+
+  useLiveRefresh({ scope: 'orders', refresh: liveRefresh });
+
   useFocusEffect(
     useCallback(() => {
       load();
-      const unsubscribe = subscribeOrdersRefresh(() => {
-        void load({ silent: true });
-      });
-      return unsubscribe;
     }, [load]),
   );
 

@@ -1,20 +1,14 @@
-type RefreshListener = () => void;
-
-const listeners = new Set<RefreshListener>();
-
-export function subscribeOrdersRefresh(listener: RefreshListener): () => void {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
+import { triggerLiveRefresh } from '@/lib/live-refresh';
 
 export function requestOrdersRefresh(): void {
-  for (const listener of listeners) {
-    try {
-      listener();
-    } catch {
-      // ignore subscriber errors
-    }
-  }
+  void triggerLiveRefresh('orders');
+}
+
+export function requestDashboardRefresh(): void {
+  void triggerLiveRefresh('dashboard');
+}
+
+export function requestAllLiveDataRefresh(): void {
+  void triggerLiveRefresh('orders');
+  void triggerLiveRefresh('dashboard');
 }

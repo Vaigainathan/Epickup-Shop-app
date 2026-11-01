@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ShopAppHeader } from '@/components/ShopAppHeader';
 import { ShopPushProvider } from '@/components/ShopPushProvider';
 import { colors, spacing, typography } from '@/constants/theme';
+import { NotificationPermissionProvider } from '@/lib/notification-permission-context';
 import {
   ShopOpenStatusProvider,
   useShopOpenStatus,
@@ -119,9 +120,11 @@ function AppTabShell() {
 export default function AppTabsLayout() {
   return (
     <ShopPushProvider>
-      <ShopOpenStatusProvider>
-        <AppTabShell />
-      </ShopOpenStatusProvider>
+      <NotificationPermissionProvider>
+        <ShopOpenStatusProvider>
+          <AppTabShell />
+        </ShopOpenStatusProvider>
+      </NotificationPermissionProvider>
     </ShopPushProvider>
   );
 }

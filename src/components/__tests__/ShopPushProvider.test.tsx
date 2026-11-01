@@ -33,10 +33,15 @@ jest.mock('@/lib/session', () => ({
 
 jest.mock('@/lib/shop-push-registration', () => ({
   registerShopPushFromDevice: jest.fn(),
+  onAppForegroundForPush: jest.fn(),
+}));
+
+jest.mock('@/lib/shop-notification-channels', () => ({
+  ensureShopNotificationChannels: jest.fn(),
 }));
 
 jest.mock('@/lib/orders-refresh', () => ({
-  requestOrdersRefresh: jest.fn(),
+  requestAllLiveDataRefresh: jest.fn(),
 }));
 
 describe('ShopPushProvider cold start', () => {

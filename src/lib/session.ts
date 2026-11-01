@@ -104,6 +104,12 @@ export async function getSessionToken(): Promise<string | null> {
   return read(TOKEN_KEY);
 }
 
+/** Stable key for push registration — changes when session token changes. */
+export async function getSessionRegistrationKey(): Promise<string> {
+  const token = await getSessionToken();
+  return token ?? 'none';
+}
+
 export async function getRefreshToken(): Promise<string | null> {
   return read(REFRESH_TOKEN_KEY);
 }
