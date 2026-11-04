@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppTextInput } from '@/components/AppTextInput';
@@ -65,6 +65,7 @@ export function OrderPaymentActions({
   const [receivedAmount, setReceivedAmount] = useState('');
   const [refundSheetOpen, setRefundSheetOpen] = useState(false);
   const [quickConfirmActive, setQuickConfirmActive] = useState(false);
+  const submitInFlightRef = useRef(false);
 
   const quickConfirmAvailable = canQuickConfirmPayment(order, 'confirm_received');
   const allActions = useMemo(() => getShopOrderActions(order), [order]);
@@ -173,6 +174,8 @@ export function OrderPaymentActions({
 
   async function runSubmit() {
     if (!activeAction) return;
+    if (busy || submitInFlightRef.current) return;
+    submitInFlightRef.current = true;
     setBusy(true);
     onActionError(null);
     try {
@@ -259,6 +262,7 @@ export function OrderPaymentActions({
         onActionError(ordersErrorMessage(err, 'Could not update this order.'));
       }
     } finally {
+      submitInFlightRef.current = false;
       setBusy(false);
     }
   }
