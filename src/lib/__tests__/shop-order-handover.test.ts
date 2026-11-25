@@ -120,4 +120,50 @@ describe('shop-order-handover', () => {
     expect(shopPickedUpTime(order)).toEqual(handed);
     expect(shopDeliveryPartnerMessage(order)).toContain('Picked up by Priya at');
   });
+
+  it('completed with driverInfo shows card, driver row, and delivered message', () => {
+    const driverInfo = { name: 'Anil', phone: '777', vehicle: 'TN99', photoUrl: null };
+    const order = minimalOrder({
+      id: 'c',
+      orderStatus: 'completed',
+      orderStatusRaw: 'completed',
+      driverInfo,
+    });
+    expect(shouldShowDeliveryPartnerCard(order)).toBe(true);
+    expect(shouldShowDriverCard(order)).toBe(true);
+    expect(shopDeliveryPartnerMessage(order)).toBe('Delivered by Anil');
+  });
+
+  it('completed without driverInfo hides partner card and message', () => {
+    const order = minimalOrder({
+      id: 'c0',
+      orderStatus: 'completed',
+      orderStatusRaw: 'completed',
+      driverInfo: null,
+    });
+    expect(shouldShowDeliveryPartnerCard(order)).toBe(false);
+    expect(shouldShowDriverCard(order)).toBe(false);
+    expect(shopDeliveryPartnerMessage(order)).toBeNull();
+  });
+
+  it('cancelled and delivery_failed stay hidden even with driverInfo', () => {
+    const driverInfo = { name: 'Anil', phone: '777', vehicle: 'TN99', photoUrl: null };
+    const cancelled = minimalOrder({
+      id: 'x',
+      orderStatus: 'cancelled',
+      orderStatusRaw: 'cancelled',
+      driverInfo,
+    });
+    const failed = minimalOrder({
+      id: 'y',
+      orderStatus: 'delivery_failed',
+      orderStatusRaw: 'delivery_failed',
+      driverInfo,
+    });
+    for (const order of [cancelled, failed]) {
+      expect(shouldShowDeliveryPartnerCard(order)).toBe(false);
+      expect(shouldShowDriverCard(order)).toBe(false);
+      expect(shopDeliveryPartnerMessage(order)).toBeNull();
+    }
+  });
 });

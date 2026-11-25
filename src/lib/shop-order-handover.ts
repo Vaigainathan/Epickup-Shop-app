@@ -9,7 +9,9 @@ function normalizedStage(order: ShopOrder): string | null {
 }
 
 export function shouldShowDeliveryPartnerCard(order: ShopOrder): boolean {
-  return order.orderStatus === 'ready' || order.orderStatus === 'handed_over';
+  if (order.orderStatus === 'ready' || order.orderStatus === 'handed_over') return true;
+  if (order.orderStatus === 'completed' && order.driverInfo !== null) return true;
+  return false;
 }
 
 export function isWaitingForDeliveryPartner(order: ShopOrder): boolean {
@@ -19,6 +21,7 @@ export function isWaitingForDeliveryPartner(order: ShopOrder): boolean {
 }
 
 export function shouldShowDriverCard(order: ShopOrder): boolean {
+  if (order.orderStatus === 'completed') return order.driverInfo !== null;
   if (!shouldShowDeliveryPartnerCard(order)) return false;
   if (isWaitingForDeliveryPartner(order)) return false;
   if (order.orderStatus === 'handed_over') return order.driverInfo !== null;
@@ -33,6 +36,11 @@ export function shopPickedUpTime(order: ShopOrder): Date | null {
 
 export function shopDeliveryPartnerMessage(order: ShopOrder): string | null {
   if (!shouldShowDeliveryPartnerCard(order)) return null;
+
+  if (order.orderStatus === 'completed') {
+    const name = order.driverInfo?.name?.trim() || 'Delivery partner';
+    return `Delivered by ${name}`;
+  }
 
   if (order.orderStatus === 'handed_over' || normalizedStage(order) === 'picked_up') {
     const name = order.driverInfo?.name?.trim() || 'Delivery partner';
