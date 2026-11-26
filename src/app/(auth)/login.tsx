@@ -14,6 +14,7 @@ import { AppTextInput } from '@/components/AppTextInput';
 import { KeyboardFormScroll } from '@/components/KeyboardFormScroll';
 import { colors, spacing, typography } from '@/constants/theme';
 import { apiUrl } from '@/lib/api';
+import { getAppVersionLabel } from '@/lib/app-version';
 import { USER_INACTIVE_LOGIN_COPY } from '@/lib/auth-error-messages';
 import { routeAfterAuthenticatedSession } from '@/lib/onboarding-routing';
 import { extractRefreshToken, extractSessionToken, setSessionTokens } from '@/lib/session';
@@ -45,6 +46,7 @@ function shopLoginErrorCode(body: unknown): string | null {
 }
 
 export default function LoginScreen() {
+  const appVersionLabel = getAppVersionLabel();
   const { message } = useLocalSearchParams<{ message?: string }>();
   const notice = typeof message === 'string' ? message : Array.isArray(message) ? message[0] : null;
 
@@ -244,11 +246,13 @@ export default function LoginScreen() {
                 </Pressable>
               </Link>
             </View>
-            <View style={styles.versionRow}>
-              <View style={styles.versionRule} />
-              <Text style={styles.version}>v2.4.0</Text>
-              <View style={styles.versionRule} />
-            </View>
+            {appVersionLabel ? (
+              <View style={styles.versionRow}>
+                <View style={styles.versionRule} />
+                <Text style={styles.version}>{appVersionLabel}</Text>
+                <View style={styles.versionRule} />
+              </View>
+            ) : null}
           </View>
       </KeyboardFormScroll>
     </SafeAreaView>

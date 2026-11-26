@@ -4,6 +4,7 @@ import { Animated, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, spacing, typography } from '@/constants/theme';
+import { getAppVersionLabel } from '@/lib/app-version';
 import { routeAfterAuthenticatedSession } from '@/lib/onboarding-routing';
 import { getSessionToken } from '@/lib/session';
 
@@ -16,6 +17,7 @@ function delay(ms: number) {
 }
 
 export default function SplashScreen() {
+  const appVersionLabel = getAppVersionLabel();
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.92)).current;
   const progress = useRef(new Animated.Value(0)).current;
@@ -94,7 +96,7 @@ export default function SplashScreen() {
 
       <View style={styles.footer}>
         <Text style={styles.secure}>Secure Operations Portal</Text>
-        <Text style={styles.version}>v2.4.0 • Enterprise Edition</Text>
+        {appVersionLabel ? <Text style={styles.version}>{appVersionLabel}</Text> : null}
       </View>
     </SafeAreaView>
   );
