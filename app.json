@@ -11,7 +11,7 @@
       "icon": "./assets/images/epickup_shop_logo_1024.png"
     },
     "android": {
-      "versionCode": 8,
+      "versionCode": 9,
       "package": "com.epickup.shop",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
@@ -80,7 +80,11 @@
         "expo-notifications",
         {
           "color": "#000666",
-          "defaultChannel": "default"
+          "defaultChannel": "default",
+          "sounds": [
+            "./assets/sounds/shop_new_order_v2.wav",
+            "./assets/sounds/shop_reminder_v2.wav"
+          ]
         }
       ]
     ],
